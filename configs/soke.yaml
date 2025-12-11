@@ -12,7 +12,7 @@ TRAIN:
   END_EPOCH: 150 # End epoch
   RESUME: '' # Resume training from this path
   PRETRAINED: '' # Preatrained model path
-  PRETRAINED_VAE: './project/lt200449-ttsign/pretrained/tokenizer.ckpt' # Vae model path
+  PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
 
   OPTIM:
     target: AdamW

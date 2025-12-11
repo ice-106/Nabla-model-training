@@ -23,5 +23,8 @@ slurm/out/
 *.zip
 *.png
 
+# [MODIFIED]
 ._dbindex_/
 t2m.tar.gz
+# Below just for repositioning for code to be able to run. No need to add to git
+get_motion_code.py

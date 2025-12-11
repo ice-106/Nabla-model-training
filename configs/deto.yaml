@@ -33,7 +33,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: /project/lt200449-ttsign/pretrained/tokenizer.ckpt
+  CHECKPOINTS: ../pretrained/tokenizer.ckpt
   SPLIT: test
   BATCH_SIZE: 16 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test

@@ -16,8 +16,8 @@ def main():
     # Configs
     cfg = parse_args(phase="train")  # parse config file
     
-    if os.path.exists("./wandb_key.txt"):
-        with open("./wandb_key.txt", "r") as f:
+    if os.path.exists("../wandb_key.txt"):
+        with open("../wandb_key.txt", "r") as f:
             wandb_key = f.read().strip()
 
     if wandb_key:
