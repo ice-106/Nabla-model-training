@@ -125,7 +125,13 @@ class Text2MotionDatasetToken(data.Dataset):
         elif src == 'phoenix_iso':
             clip_poses, text, name, _ = load_iso_sample(sample, self.phoenix_root, dataset='phoenix_iso')
             src = 'phoenix'
-
+       
+        # [Modified] to prevent null clip_poses by skipping
+        if clip_poses is None:
+          print(f"Warning: clip_poses is None for index {idx}, skipping...")
+          # Return a default/dummy sample or retry with next index
+          return self.__getitem__((idx + 1) % len(self))
+        
         clip_poses = (clip_poses - self.mean.numpy())/(self.std.numpy()+1e-10)
         m_length = clip_poses.shape[0]
         if m_length < self.min_motion_length:

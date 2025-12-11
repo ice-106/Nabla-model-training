@@ -52,13 +52,13 @@ class Text2MotionDatasetCB(data.Dataset):
         self.max_motion_length = max_motion_length
         self.min_motion_length = min_motion_length
         assert max_motion_length % unit_length == 0 and min_motion_length % unit_length == 0
-        self.max_motion_length = max_motion_length // self.unit_length  
+        self.max_motion_length = max_motion_length // self.unit_length
         self.min_motion_length = min_motion_length // self.unit_length  #4x downsampling in code
 
         # Data path
         split = 'train'
         self.code_path = code_path
-        
+
         if task_path:
             instructions = task_path
         elif stage == 'lm_pretrain':
@@ -67,7 +67,7 @@ class Text2MotionDatasetCB(data.Dataset):
             instructions = pjoin('prepare/instructions', 'template_instructions.json')
         else:
             raise NotImplementedError(f"stage {stage} not implemented")
-        
+
         self.all_data = []
         self.h2s_len = self.csl_len = self.phoenix_len = 0
         if 'how2sign' in dataset_name:
@@ -84,14 +84,14 @@ class Text2MotionDatasetCB(data.Dataset):
                 name = self.ids[idx]
                 if name in bad_how2sign_ids:
                     continue
-                self.all_data.append({'name': name, 'fps': self.csv[self.csv['SENTENCE_NAME']==name]['fps'].item(), 
+                self.all_data.append({'name': name, 'fps': self.csv[self.csv['SENTENCE_NAME']==name]['fps'].item(),
                                         'text': self.csv[self.csv['SENTENCE_NAME']==name]['SENTENCE'].item(), 'src': 'how2sign'})
                 # _, text, n, code = load_h2s_sample(idx, self.ids, self.csv, self.data_dir, need_pose=False, code_path=os.path.join(data_root, code_path), need_code=True)
                 # if text is None and n is None:
                 #     continue  #some samples are missing due to too short length
                 # self.all_data.append({'name': n, 'code': code, 'text': text, 'src': 'how2sign'})
             self.h2s_len = len(self.all_data)
-        
+
         if 'csl' in dataset_name:
             if split == 'train':
                 ann_path = os.path.join(self.csl_root, 'csl_clean.train')
@@ -145,7 +145,7 @@ class Text2MotionDatasetCB(data.Dataset):
         return len(self.all_data) * len(self.tasks)
 
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx, max_retries=50):
         data_idx = idx % len(self.all_data)
         task_idx = idx // len(self.all_data)
         sample = self.all_data[data_idx]
@@ -159,6 +159,17 @@ class Text2MotionDatasetCB(data.Dataset):
             _, caption, name, m_tokens = load_csl_sample(sample, self.csl_root, need_pose=False, code_path=os.path.join(self.data_root, self.code_path), need_code=True)
         elif src == 'phoenix':
             _, caption, name, m_tokens = load_phoenix_sample(sample, self.phoenix_root, need_pose=False, code_path=os.path.join(self.data_root, self.code_path), need_code=True)
+
+        # Handle case when m_tokens is None (corrupted/missing data)
+        if m_tokens is None:
+            if max_retries <= 0:
+                raise RuntimeError(f"Failed to load valid sample after 50 retries. Last failed: idx={data_idx}, src={src}")
+            # Log warning about failed sample
+            import warnings
+            warnings.warn(f"Failed to load sample {data_idx} (name: {name if 'name' in locals() else 'unknown'}, src: {src}). Retries left: {max_retries}")
+            # Try next sample instead
+            new_idx = (idx + 1) % len(self)
+            return self.__getitem__(new_idx, max_retries=max_retries - 1)
 
         all_captions = [caption]
         # print(m_tokens.shape)
