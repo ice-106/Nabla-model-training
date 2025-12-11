@@ -66,7 +66,7 @@ def main():
         callbacks=callbacks,
         check_val_every_n_epoch=cfg.LOGGER.VAL_EVERY_STEPS,
         accelerator=cfg.ACCELERATOR,
-        devices=cfg.DEVICE,
+        devices=len(cfg.DEVICE),
         num_nodes=cfg.NUM_NODES,
         strategy="ddp_find_unused_parameters_true" if len(cfg.DEVICE) > 1 else 'auto',
         # strategy=DDPStrategy(process_group_backend="nccl"),
