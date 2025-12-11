@@ -1,7 +1,7 @@
 NAME: SOKE # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0,1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
+DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
 
 TRAIN:
   #---------------------------------
@@ -10,7 +10,7 @@ TRAIN:
   NUM_WORKERS: 16 # Number of workers
   BATCH_SIZE: 32 # Size of batches
   END_EPOCH: 150 # End epoch
-  RESUME: '' # Resume training from this path
+  RESUME: './experiments/mgpt/SOKE' # Resume training from this path
   PRETRAINED: '' # Preatrained model path
   PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
 
