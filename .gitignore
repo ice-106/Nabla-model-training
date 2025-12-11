@@ -22,3 +22,6 @@ slurm/out/
 *.csv
 *.zip
 *.png
+
+._dbindex_/
+t2m.tar.gz

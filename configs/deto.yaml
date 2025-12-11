@@ -1,7 +1,7 @@
 NAME: DETO # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0,1,2,3,4,5] # Index of gpus eg. [0] or [0,1,2,3,4,5]
+DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
 
 TRAIN:
   #---------------------------------
@@ -25,7 +25,7 @@ TRAIN:
     params:
       T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
       eta_min: 1e-6
-    
+
 
 # Evaluating Configuration
 EVAL:
@@ -33,7 +33,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: null
+  CHECKPOINTS: /project/lt200449-ttsign/pretrained/tokenizer.ckpt
   SPLIT: test
   BATCH_SIZE: 16 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -42,7 +42,7 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: how2sign_csl_phoenix
+    DATASET_NAME: csl
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -84,4 +84,4 @@ LOGGER:
   VAL_EVERY_STEPS: 10  #10
   WANDB:
     params:
-      project: SLG
+      project: SLG-Lanta
