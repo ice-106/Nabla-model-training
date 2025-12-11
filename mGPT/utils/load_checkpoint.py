@@ -10,9 +10,9 @@ def load_pretrained(cfg, model, logger=None, phase="train"):
     
     if logger is not None:
         logger.info(f"Loading pretrain model from {ckpt_path}")
-        
-    state_dict = torch.load(ckpt_path, map_location="cpu")["state_dict"]
-    model.load_state_dict(state_dict, strict=False)
+    
+    # [MODIFIED] To be able to load from given checkpoint
+    state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)["state_dict"]
     return model
 
 
