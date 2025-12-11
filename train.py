@@ -1,6 +1,7 @@
 import os
 import glob
 import torch
+import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
 from omegaconf import OmegaConf
@@ -14,6 +15,14 @@ from mGPT.utils.load_checkpoint import load_pretrained, load_pretrained_vae
 def main():
     # Configs
     cfg = parse_args(phase="train")  # parse config file
+    
+    if os.path.exists("./wandb_key.txt"):
+        with open("./wandb_key.txt", "r") as f:
+            wandb_key = f.read().strip()
+
+    if wandb_key:
+        wandb.login(key=wandb_key)
+
     os.environ['CUDA_VISIBLE_DEVICES'] = cfg.USE_GPUS
     # print(cfg)
 
