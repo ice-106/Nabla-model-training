@@ -96,7 +96,7 @@ def parse_args(phase="train"):
     group.add_argument("--use_gpus",
                            type=str,
                            required=False,
-                           default='2,3,4,5,6,7',
+                           default='0,1,2,3',
                            help="cuda environ devices")
     
     # Parse for each phase
