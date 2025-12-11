@@ -33,6 +33,12 @@ class BaseModel(LightningModule):
             ))
         os.makedirs(self.output_dir, exist_ok=True)
 
+    def _get_rank(self):
+        """[MODIFIED]: Safely get the rank, returning 0 if distributed is not initialized."""
+        if dist.is_available() and dist.is_initialized():
+            return dist.get_rank()
+        return 0
+
     def training_step(self, batch, batch_idx):
         return self.allsplit_step("train", batch, batch_idx)
 
@@ -49,7 +55,7 @@ class BaseModel(LightningModule):
         ref_len = outputs['lengths']
         rst_len = outputs['lengths_rst']
         try:
-            save_dir = os.path.join(self.output_dir, f'{self.hparams.cfg.TEST.SPLIT}_rank_'+str(torch.distributed.get_rank()))
+            save_dir = os.path.join(self.output_dir, f'{self.hparams.cfg.TEST.SPLIT}_rank_'+str(self._get_rank()))
         except:
             save_dir = os.path.join(self.output_dir, f'{self.hparams.cfg.TEST.SPLIT}_rank_0')
         os.makedirs(save_dir, exist_ok=True)
@@ -98,7 +104,7 @@ class BaseModel(LightningModule):
         #print before sync
         if 'lm' in self.hparams.stage:
             name2scores = getattr(self.metrics.TM2TMetrics, 'name2scores')
-            metrics = ["how2sign_DTW_MPJPE_PA_lhand", "how2sign_DTW_MPJPE_PA_rhand", "how2sign_DTW_MPJPE_PA_body", 
+            metrics = ["how2sign_DTW_MPJPE_PA_lhand", "how2sign_DTW_MPJPE_PA_rhand", "how2sign_DTW_MPJPE_PA_body",
                            "csl_DTW_MPJPE_PA_lhand", "csl_DTW_MPJPE_PA_rhand", "csl_DTW_MPJPE_PA_body",
                            "phoenix_DTW_MPJPE_PA_lhand", "phoenix_DTW_MPJPE_PA_rhand", "phoenix_DTW_MPJPE_PA_body"]
             scores, count = {}, {}
@@ -110,7 +116,7 @@ class BaseModel(LightningModule):
                     count[n] = count[n] + 1
             for k in scores.keys():
                 scores[k] = scores[k] / max(count[k], 1)
-            print('rank: ', torch.distributed.get_rank(), scores)
+            print('rank: ', self._get_rank(), scores)
 
         # Log metrics
         dico = self.metrics_log_dict()
@@ -120,7 +126,11 @@ class BaseModel(LightningModule):
         # self.save_npy(self.test_step_outputs)
 
         # save prediction
-        save_dir = os.path.join(self.output_dir, f'{self.hparams.cfg.TEST.SPLIT}_rank_'+str(torch.distributed.get_rank()))
+        if torch.distributed.is_initialized():
+            rank = self._get_rank()
+        else:
+            rank = 0
+        save_dir = os.path.join(self.output_dir, f'{self.hparams.cfg.TEST.SPLIT}_rank_{rank}')
         os.makedirs(save_dir, exist_ok=True)
         if 'lm' in self.hparams.stage:
             with open(os.path.join(save_dir, 'test_scores.json'), 'w') as f:
@@ -128,7 +138,7 @@ class BaseModel(LightningModule):
         elif 'vae' in self.hparams.stage:
             with open(os.path.join(save_dir, 'test_scores.json'), 'w') as f:
                 json.dump(getattr(self.metrics.MRMetrics, 'name2scores'), f)
-        
+
         self.rep_i = self.rep_i + 1
         # Free up the memory
         self.test_step_outputs.clear()
@@ -136,7 +146,7 @@ class BaseModel(LightningModule):
 
     def preprocess_state_dict(self, state_dict):
         new_state_dict = OrderedDict()
-        
+
         metric_state_dict = self.metrics.state_dict()
         loss_state_dict = self._losses.state_dict()
 
@@ -187,7 +197,7 @@ class BaseModel(LightningModule):
             })
 
         return metrics_log_dict
-    
+
     def configure_optimizers(self):
         # Optimizer
         optim_target = self.hparams.cfg.TRAIN.OPTIM.target
