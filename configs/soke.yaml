@@ -1,7 +1,7 @@
 NAME: SOKE # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0,1,2,3,4,5] # Index of gpus eg. [0] or [0,1,2,3]
+DEVICE: [0,1,2,3] # Index of gpus eg. [0] or [0,1,2,3]
 
 TRAIN:
   #---------------------------------
@@ -12,7 +12,7 @@ TRAIN:
   END_EPOCH: 150 # End epoch
   RESUME: '' # Resume training from this path
   PRETRAINED: '' # Preatrained model path
-  PRETRAINED_VAE: 'experiments/mgpt/vae/checkpoints/tokenizer.ckpt' # Vae model path
+  PRETRAINED_VAE: './project/lt200449-ttsign/pretrained/tokenizer.ckpt' # Vae model path
 
   OPTIM:
     target: AdamW
@@ -42,7 +42,7 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: how2sign_csl_phoenix
+    DATASET_NAME: csl
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -55,7 +55,7 @@ DATASET:
     FRAME_RATE: 20.0
     UNIT_LEN: 4
     STD_TEXT: False
-  CODE_PATH: TOKENS_h2s_csl_phoenix
+  CODE_PATH: TOKENS_csl
 
 METRIC:
   TYPE: ['TM2TMetrics']
@@ -83,4 +83,4 @@ LOGGER:
   VAL_EVERY_STEPS: 5
   WANDB:
     params:
-      project: SLG
+      project: SLG-Lanta
