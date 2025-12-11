@@ -160,7 +160,7 @@ class Text2MotionDatasetCB(data.Dataset):
         elif src == 'phoenix':
             _, caption, name, m_tokens = load_phoenix_sample(sample, self.phoenix_root, need_pose=False, code_path=os.path.join(self.data_root, self.code_path), need_code=True)
 
-        # Handle case when m_tokens is None (corrupted/missing data)
+        # [MODIFIED] Handle case when m_tokens is None (corrupted/missing data)
         if m_tokens is None:
             if max_retries <= 0:
                 raise RuntimeError(f"Failed to load valid sample after 50 retries. Last failed: idx={data_idx}, src={src}")
