@@ -13,6 +13,7 @@ def load_pretrained(cfg, model, logger=None, phase="train"):
     
     # [MODIFIED] To be able to load from given checkpoint
     state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)["state_dict"]
+    model.load_state_dict(state_dict, strict=False)
     return model
 
 

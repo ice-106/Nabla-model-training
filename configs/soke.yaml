@@ -33,7 +33,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: null
+  CHECKPOINTS: "./experiments/mgpt/SOKE/checkpoints/last.ckpt"
   SPLIT: test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -84,3 +84,6 @@ LOGGER:
   WANDB:
     params:
       project: SLG-Lanta
+      id: "ygajm5v9"
+      resume: "must"
+      
