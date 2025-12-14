@@ -36,8 +36,8 @@ keys = ['smplx_root_pose',
         'smplx_expr'
     ]
 
-h2s_csl_mean = torch.load('../data/rzuo/CSL-Daily/mean.pt').cuda()
-h2s_csl_std = torch.load('../data/rzuo/CSL-Daily/std.pt').cuda()
+h2s_csl_mean = torch.load('../data/CSL-Daily/mean.pt').cuda()
+h2s_csl_std = torch.load('../data/CSL-Daily/std.pt').cuda()
 h2s_csl_mean = h2s_csl_mean[(3+3*11):]
 h2s_csl_mean = torch.cat([h2s_csl_mean[:-20], h2s_csl_mean[-10:]], dim=0)
 h2s_csl_std = h2s_csl_std[(3+3*11):]
