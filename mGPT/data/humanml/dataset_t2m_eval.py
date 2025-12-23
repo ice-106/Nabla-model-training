@@ -42,6 +42,10 @@ class Text2MotionDatasetEval(Text2MotionDataset):
         elif src == 'phoenix':
             clip_poses, text, name, _ = load_phoenix_sample(sample, self.phoenix_root)
         
+        # [MODIFIED] Handle none case
+        if clip_poses is None:
+            return self.__getitem__((idx + 1) % len(self.all_data))
+
         all_captions = [text]
         all_captions = all_captions * 3  #?
 
