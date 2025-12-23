@@ -34,7 +34,7 @@ EVAL:
 
 TEST:
   CHECKPOINTS: "./experiments/mgpt/SOKE/checkpoints/last.ckpt"
-  SPLIT: test
+  SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: True # set to save prediction
