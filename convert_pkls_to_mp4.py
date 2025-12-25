@@ -1,12 +1,17 @@
 import os
+# Set per-process environment variable for headless rendering
+os.environ["PYOPENGL_PLATFORM"] = "egl"
 import pickle
 import torch
 import numpy as np
-import trimesh
 import argparse
 from tqdm import tqdm
 from mGPT.utils.human_models import smpl_x, get_coord
 from mGPT.utils.rotation_conversions import rotation_6d_to_matrix, matrix_to_axis_angle
+from mGPT.utils.render_utils import render_video_from_meshes
+from mGPT.utils.render_utils import render_video_from_meshes
+import csv
+import random
 
 def feats2joints(features, mean, std, rot6d=False):
     #smpl2joints and drop lowerbody
@@ -56,14 +61,17 @@ def feats2joints(features, mean, std, rot6d=False):
     return vertices, joints
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert SMPL-X PKL sequences to OBJ per frame.")
+    parser = argparse.ArgumentParser(description="Convert SMPL-X PKL sequences to Video directly.")
     parser.add_argument("--input_dir", type=str, required=True, help="Directory containing .pkl files.")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save output .obj files.")
+    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save output .mp4 files.")
     parser.add_argument("--mean_path", type=str, default="../data/CSL-Daily/mean.pt", help="Path to mean.pt")
     parser.add_argument("--std_path", type=str, default="../data/CSL-Daily/std.pt", help="Path to std.pt")
-    parser.add_argument("--type", type=str, default="result", help="Render model prediction (result) or ground truth (reference)")
-    # parser.add_argument("--rot6d", action="store_true", help="Whether using 6D rotation.")
+    parser.add_argument("--rot6d", action="store_true", default=False, help="Whether using 6D rotation.")
+    parser.add_argument("--fps", type=int, default=20, help="Frames per second")
+    parser.add_argument("--num_samples", type=int, default=None, help="Number of samples to process. If None, process all.")
+    parser.add_argument("--seed", type=int, default=1234, help="Random seed for sampling.")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device to use.")
+    parser.add_argument("--type", type=str, default="result", choices=["result", "reference"], help="Type of motion to render: result or reference.")
     
     args = parser.parse_args()
     
@@ -86,11 +94,20 @@ def main():
     h2s_csl_std = h2s_csl_std[(3+3*11):]
     h2s_csl_std = torch.cat([h2s_csl_std[:-20], h2s_csl_std[-10:]], dim=0)
 
-    import csv
-
     os.makedirs(output_dir, exist_ok=True)
     
     pkl_files = [f for f in os.listdir(input_dir) if f.endswith(".pkl")]
+    pkl_files.sort() # Ensure consistent order
+    
+    if args.num_samples is not None:
+        if args.seed is not None:
+             random.seed(args.seed)
+             random.shuffle(pkl_files)
+             print(f"Randomly shuffled samples with seed {args.seed}.")
+        
+        pkl_files = pkl_files[:args.num_samples]
+        print(f"Limiting to first {args.num_samples} samples.")
+        
     print(f"Found {len(pkl_files)} .pkl files.")
 
     metadata_list = []
@@ -99,9 +116,8 @@ def main():
         pkl_path = os.path.join(input_dir, pkl_file)
         file_basename = os.path.splitext(pkl_file)[0]
         
-        # Determine specific output directory for this file
-        file_out_dir = os.path.join(output_dir, file_basename)
-        os.makedirs(file_out_dir, exist_ok=True)
+        # Determine specific output filename
+        video_out_path = os.path.join(output_dir, f"{file_basename}.mp4")
         
         try:
             with open(pkl_path, 'rb') as f:
@@ -112,11 +128,18 @@ def main():
             text_content = ""
 
             if isinstance(data, dict):
+                # Determine key based on type
+                if args.type == 'result':
+                    target_key = 'feats_rst'
+                elif args.type == 'reference':
+                    target_key = 'feats_ref'
+                
                 # Check for key
-                if 'feats_rst' in data and args.type == "result":
-                    features = data['feats_rst']
-                elif 'feats_ref' in data and args.type == "reference":
-                    features = data['feats_ref']
+                if target_key in data:
+                    features = data[target_key]
+                else:
+                    print(f"Warning: Key '{target_key}' not found in {pkl_file}. Available keys: {list(data.keys())}")
+                    continue
                 
                 # Extract text
                 if 'text' in data:
@@ -140,33 +163,55 @@ def main():
             if features.dim() == 2:
                 features = features.unsqueeze(0)
 
-            # Debug input shape
-            if pkl_files.index(pkl_file) == 0:
-                 print(f"Debug: Feature shape for first file: {features.shape}")
-                 print(f"Debug: Mean shape: {h2s_csl_mean.shape}, Std shape: {h2s_csl_std.shape}")
-
             # Check if features match mean/std
             if features.shape[-1] != h2s_csl_mean.shape[-1]:
-                print(f"Warning: Feature dim {features.shape[-1]} != Mean dim {h2s_csl_mean.shape[-1]}. Function feats2joints will attempt to handle it.")
+                # tqdm.write just to avoid messing up progress bar
+                tqdm.write(f"Warning: Feature dim {features.shape[-1]} != Mean dim {h2s_csl_mean.shape[-1]}. Function feats2joints will attempt to handle it.")
 
-            vertices, _ = feats2joints(features, h2s_csl_mean, h2s_csl_std, rot6d=False)
+            vertices, _ = feats2joints(features, h2s_csl_mean, h2s_csl_std, rot6d=args.rot6d)
             if vertices.shape[0] == 0:
                  print(f"Error: No vertices returned for {pkl_file}")
                  continue
             
-            vertices = vertices.cpu().numpy() # Keep all frames
+            # vertices back to cpu numpy [T, V, 3] and take first batch item (since batch size is 1)
+            # feats2joints returns [B*T, V, 3] ?
+            # Let's check feats2joints return:
+            # features = torch.cat(...).view(B*T, -1)
+            # vertices, joints = get_coord(...) -> vertices shape is [B*T, 10475, 3] likely if B*T is treated as batch in get_coord
             
-            # Save Frames
-            for i, vert in enumerate(vertices):
-                if vert.shape[0] < 100:
-                     print(f"Error: Vertices count too low ({vert.shape[0]}) for frame {i} in {pkl_file}. Skipping.")
-                     continue
-                
-                mesh = trimesh.Trimesh(vertices=vert, faces=smpl_x.face, process=False)
-                mesh.export(os.path.join(file_out_dir, f"{i:05d}.obj"))
-                
+            # The input 'features' had shape (1, T, D). B=1
+            # inside feats2joints: features becomes (B*T, -1)
+            # So output vertices is (B*T, V, 3) = (T, V, 3) 
+            
+            vertices = vertices.cpu().numpy() 
+            
+            # Filter frames with low vertex count? (copied from original logic)
+            # The original logic was:
+            # for i, vert in enumerate(vertices):
+            #    if vert.shape[0] < 100: ...
+            # Actually get_coord returns consistent V count (10475 usually)
+            # The original check might have been for some failing frames.
+            # We can check the first frame.
+            
+            if vertices.shape[1] < 100:
+                print(f"Error: Vertices count too low ({vertices.shape[1]}) in {pkl_file}. Skipping.")
+                continue
+
+            # Render directly
+            # We need faces.
+            faces = smpl_x.face
+            
+            render_video_from_meshes(
+                verts_list=vertices,
+                faces=faces,
+                save_path=video_out_path,
+                fps=args.fps
+            )
+            
         except Exception as e:
             print(f"Failed to process {pkl_file}: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Write CSV
     csv_path = os.path.join(output_dir, "metadata.csv")
