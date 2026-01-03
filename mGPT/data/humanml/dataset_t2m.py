@@ -1,5 +1,6 @@
 import os, math, gzip
 import pickle
+import random
 import codecs as cs
 import numpy as np
 from torch.utils import data
@@ -43,6 +44,8 @@ class Text2MotionDataset(data.Dataset):
         self.csl_root = kwargs.get('csl_root', None)
         self.phoenix_root = kwargs.get('phoenix_root', None)
         self.debug = debug #[MODIFIED] Added debug flag
+        self.num_sample = kwargs.get('num_sample', None) #[MODIFIED]
+        self.seed = kwargs.get('seed', None) #[MODIFIED]
 
         # Data mean and std
         self.mean = mean
@@ -81,7 +84,12 @@ class Text2MotionDataset(data.Dataset):
                 self.ann = pickle.load(f) #[:800]
 
             # [MODIFIED] Add debug to load only one data point.
-            if self.debug and split == 'train':
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                random.seed(self.seed)
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from CSL ({split}) with seed {self.seed}')
+            elif self.debug and split == 'train':
                 self.ann = self.ann[:1]
                 print(f'DEBUG MODE: Loading only 1 sample from CSL ({split})')
 

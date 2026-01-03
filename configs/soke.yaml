@@ -1,7 +1,15 @@
-NAME: SOKE # Experiment names
+# Checklist
+# 1. Change Name
+# 2. Disable Debug mode (Two places)
+# 3. Verify dataset name 
+# 4. Verify RESUME whether you want to continue or not
+# 5. Verify Wandb Name
+
+NAME: SOKE # Experiment names: Set new name to create new environment!
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
+DEBUG: False #[MODIFIED] Add debug mode
 
 TRAIN:
   #---------------------------------
@@ -10,7 +18,7 @@ TRAIN:
   NUM_WORKERS: 16 # Number of workers
   BATCH_SIZE: 32 # Size of batches
   END_EPOCH: 150 # End epoch
-  RESUME: './experiments/mgpt/SOKE' # Resume training from this path
+  RESUME: '' # Resume training from this path
   PRETRAINED: '' # Preatrained model path
   PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
 
@@ -33,7 +41,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-One-Data/checkpoints/last.ckpt"
   SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -43,6 +51,8 @@ DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
     DATASET_NAME: csl
+    DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
+    NUM_SAMPLE: 16 #[MODIFIED] Set to 'None' to do full training.
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -83,7 +93,7 @@ LOGGER:
   VAL_EVERY_STEPS: 5
   WANDB:
     params:
-      project: SLG-Lanta
+      project: SLG-Lanta-one-point
       # id: "ygajm5v9"
       # resume: "must"
       
