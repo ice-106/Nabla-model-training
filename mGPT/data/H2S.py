@@ -69,7 +69,7 @@ class H2SDataModule(BASEDataModule):
         self.hparams.unit_length = cfg.DATASET.H2S.UNIT_LEN
 
         # Additional parameters
-        self.hparams.debug = cfg.DEBUG
+        self.hparams.debug = cfg.DATASET.H2S.get('DEBUG', False) or cfg.DEBUG # [MODIFIED] Read from config in dataset instead.
         self.hparams.stage = cfg.TRAIN.STAGE
         self.hparams.w_vectorizer = WordVectorizer(
             cfg.DATASET.WORD_VERTILIZER_PATH, "our_vab")

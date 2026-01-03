@@ -44,6 +44,7 @@ class Text2MotionDatasetCB(data.Dataset):
         self.data_root = data_root
         self.csl_root = kwargs.get('csl_root', None)
         self.phoenix_root = kwargs.get('phoenix_root', None)
+        self.debug = debug #[Modified] Added debug flag
 
         # Data mean and std
         self.mean = mean
@@ -99,6 +100,11 @@ class Text2MotionDatasetCB(data.Dataset):
                 ann_path = os.path.join(self.csl_root, f'csl_clean.{split}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:200]
+
+            # [MODIFIED] Add debug to load only one data point.
+            if self.debug and split == 'train':
+                self.ann = self.ann[:1]
+                print('DEBUG MODE: Loading only 1 sample from CSL')
 
             print('loading csl data...', len(self.ann))
             for idx in tqdm(range(len(self.ann))):
