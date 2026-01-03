@@ -205,9 +205,9 @@ class MotionGPT(BaseModel):
         outputs_tokens_rhand = gen_results['outputs_tokens_rhand']
 
         # [MODIFIED]: To see tokens output
-        print('outputs_tokens: ', outputs_tokens)
-        print('outputs_tokens_hand: ', outputs_tokens_hand)
-        print('outputs_tokens_rhand: ', outputs_tokens_rhand)
+        # print('outputs_tokens: ', outputs_tokens)
+        # print('outputs_tokens_hand: ', outputs_tokens_hand)
+        # print('outputs_tokens_rhand: ', outputs_tokens_rhand)
 
         max_len = max(map(len, outputs_tokens))
         if outputs_tokens_hand is not None:
