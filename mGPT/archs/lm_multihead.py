@@ -550,7 +550,10 @@ class LMMultiHead(nn.Module):
         
         max_length = kwargs.get('max_length', 100)
         temperature = kwargs.get('temperature', 1.0)
-        do_sample = False #kwargs.get('do_sample', True)
+        # [MODIFIED]: To make the llm not predicting the repetitive tokens
+        # do_sample = False #kwargs.get('do_sample', True)
+        do_sample = kwargs.get('do_sample', True)
+
 
         if 'mbart' in self.model_type:
             encoder = self.main_lm.get_encoder()
@@ -614,13 +617,22 @@ class LMMultiHead(nn.Module):
                         idx_next_rhand = torch.multinomial(probs_rhand, num_samples=1)
                 else:
                     idx_next_body = torch.argmax(probs_body, dim=1, keepdim=True)
-                    idx_next_body[finished] = self.eos_idx
+                    #[MODIFIED]: Implement new logic to end sequences
+                    # idx_next_body[finished] = self.eos_idx
                     if logits_lhand is not None:
                         idx_next_lhand = torch.argmax(probs_lhand, dim=1, keepdim=True)
                         idx_next_rhand = torch.argmax(probs_rhand, dim=1, keepdim=True)
-                        idx_next_lhand[finished] = idx_next_rhand[finished] = self.eos_idx
+                #[MODIFIED]: Implement new logic to end sequences
+                # Force EOS if already finished
+                idx_next_body[finished] = self.eos_idx
+                if logits_lhand is not None:
+                    idx_next_lhand[finished] = idx_next_rhand[finished] = self.eos_idx
                     
-                    finished = torch.any(idx_next_body.squeeze(-1) == self.eos_idx, dim=-1)
+                    # finished = torch.any(idx_next_body.squeeze(-1) == self.eos_idx, dim=-1)
+                # Update finished state
+                finished = (idx_next_body.squeeze(-1) == self.eos_idx)
+                if finished.all():
+                    break
                     
                 # append sampled index to the running sequence and continue
                 decoder_input_ids = torch.cat((decoder_input_ids, idx_next_body), dim=1)
