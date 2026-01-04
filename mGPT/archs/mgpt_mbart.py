@@ -354,6 +354,9 @@ class Mbart_Based_MLM(nn.Module):
         token_len = target_inputs.length.to(motion_tokens.device)
         correct_lang_token(self.tokenizer, labels_input_ids, token_len, src, part='body', target=True, model_type=self.model_type)
         labels_input_ids[labels_input_ids == 0] = -100
+        # [MODIFIED] To ignore padding in loss calculation
+        labels_input_ids[labels_input_ids == 1] = -100
+
         self.map_ids(labels_input_ids, direction='token_to_emb')
         # print('labels: ', labels_input_ids)
 
@@ -372,6 +375,8 @@ class Mbart_Based_MLM(nn.Module):
             token_len = target_inputs_hand.length.to(motion_tokens.device)
             correct_lang_token(self.tokenizer, labels_input_ids_hand, token_len, src, part='lhand', target=True, model_type=self.model_type)
             labels_input_ids_hand[labels_input_ids_hand==0] = -100
+            # [MODIFIED] To ignore padding in loss calculation
+            labels_input_ids_hand[labels_input_ids_hand==1] = -100
             self.map_ids(labels_input_ids_hand, direction='token_to_emb')
             # print('labels hand: ', labels_input_ids_hand)
 
@@ -389,6 +394,8 @@ class Mbart_Based_MLM(nn.Module):
             token_len = target_inputs_rhand.length.to(motion_tokens.device)
             correct_lang_token(self.tokenizer, labels_input_ids_rhand, token_len, src, part='rhand', target=True, model_type=self.model_type)
             labels_input_ids_rhand[labels_input_ids_rhand==0] = -100
+            # [MODIFIED] To ignore padding in loss calculation
+            labels_input_ids_rhand[labels_input_ids_rhand==1] = -100
             self.map_ids(labels_input_ids_rhand, direction='token_to_emb')
             # print('labels rhand: ', labels_input_ids_rhand)
 
