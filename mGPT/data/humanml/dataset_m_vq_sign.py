@@ -43,6 +43,11 @@ class H2SMotionDatasetVQ(data.Dataset):
         self.root_dir = data_root
         self.csl_root = kwargs.get('csl_root', None)
         self.phoenix_root = kwargs.get('phoenix_root', None)
+        
+        self.debug = debug # [MODIFIED] to add debug sampling
+        self.num_sample = kwargs.get('num_sample', None) # [MODIFIED] to add debug sampling
+        self.seed = kwargs.get('seed', None) # [MODIFIED] to add debug sampling
+        
         self.mean = mean
         self.std = std
         self.unit_length = unit_length
@@ -78,6 +83,17 @@ class H2SMotionDatasetVQ(data.Dataset):
                 ann_path = os.path.join(self.csl_root, f'csl_clean.{split}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:200]
+
+            # [MODIFIED] Add debug to load only one data point.
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                import random
+                random.seed(self.seed)
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from CSL ({split}) with seed {self.seed}')
+            elif self.debug and split == 'train':
+                self.ann = self.ann[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from CSL ({split})')
 
             print(f'{split}--loading csl annotations...', len(self.ann))
             for idx in tqdm(range(len(self.ann))):
