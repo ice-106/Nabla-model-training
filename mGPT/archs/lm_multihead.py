@@ -550,9 +550,9 @@ class LMMultiHead(nn.Module):
         
         max_length = kwargs.get('max_length', 100)
         temperature = kwargs.get('temperature', 1.0)
+        do_sample = False #kwargs.get('do_sample', True)
         # [MODIFIED]: To make the llm not predicting the repetitive tokens
-        # do_sample = False #kwargs.get('do_sample', True)
-        do_sample = kwargs.get('do_sample', True)
+        # do_sample = kwargs.get('do_sample', True)
 
 
         if 'mbart' in self.model_type:
