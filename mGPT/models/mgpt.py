@@ -205,9 +205,9 @@ class MotionGPT(BaseModel):
         outputs_tokens_rhand = gen_results['outputs_tokens_rhand']
 
         # [MODIFIED]: To see tokens output
-        # print('outputs_tokens: ', outputs_tokens)
-        # print('outputs_tokens_hand: ', outputs_tokens_hand)
-        # print('outputs_tokens_rhand: ', outputs_tokens_rhand)
+        print('outputs_tokens: ', outputs_tokens)
+        print('outputs_tokens_hand: ', outputs_tokens_hand)
+        print('outputs_tokens_rhand: ', outputs_tokens_rhand)
 
         max_len = max(map(len, outputs_tokens))
         if outputs_tokens_hand is not None:
@@ -282,6 +282,10 @@ class MotionGPT(BaseModel):
         # Recover joints for evaluation
         vertices_ref, joints_ref = self.feats2joints(feats_ref)
         vertices_rst, joints_rst = self.feats2joints(feats_rst)
+
+        # [MODIFIED]: To see tokens output: Not much useful. Too many elements. Cannot be interpreted.
+        # print('feats_ref: ', feats_ref)
+        # print('feats_rst: ', feats_rst)
 
         # Renorm for evaluation
         feats_ref = self.datamodule.renorm4t2m(feats_ref)
