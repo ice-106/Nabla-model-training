@@ -34,13 +34,15 @@ def correct_lang_token(tokenizer, input_ids: torch.Tensor, token_length: torch.T
         if model_type == 'mbart_multi_part':
             src2id = {'how2sign': {'body': 'en_ASL', 'lhand': 'en_ASL_lhand', 'rhand': 'en_ASL_rhand'}, 
                     'csl': {'body': 'zh_CSL', 'lhand': 'zh_CSL_lhand', 'rhand': 'zh_CSL_rhand'},
-                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS_lhand', 'rhand': 'de_DGS_rhand'}}
+                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS_lhand', 'rhand': 'de_DGS_rhand'},
+                      'thai': {'body': 'th_THS', 'lhand': 'th_THS_lhand', 'rhand': 'th_THS_rhand'}} #[MODIFIED]: Add thai token
         else:
             src2id = {'how2sign': {'body': 'en_ASL', 'lhand': 'en_ASL', 'rhand': 'en_ASL'}, 
                     'csl': {'body': 'zh_CSL', 'lhand': 'zh_CSL', 'rhand': 'zh_CSL'},
-                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS', 'rhand': 'de_DGS'}}
+                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS', 'rhand': 'de_DGS'},
+                    'thai': {'body': 'th_THS', 'lhand': 'th_THS', 'rhand': 'th_THS'}} #[MODIFIED]: Add thai token
     else:
-        src2id = {'how2sign': 'en_XX', 'csl': 'zh_CN', 'phoenix': 'de_DE'}
+        src2id = {'how2sign': 'en_XX', 'csl': 'zh_CN', 'phoenix': 'de_DE', 'thai': 'th_TH'} #[MODIFIED]: Add thai token
     for s in data_src:
         if target:
             token = src2id[s][part]
@@ -57,11 +59,14 @@ def make_decoder_input_ids(tokenizer, device, data_src, part, model_type='mbart_
     if model_type == 'mbart_multi_part':
         src2id = {'how2sign': {'body': 'en_ASL', 'lhand': 'en_ASL_lhand', 'rhand': 'en_ASL_rhand'}, 
                       'csl': {'body': 'zh_CSL', 'lhand': 'zh_CSL_lhand', 'rhand': 'zh_CSL_rhand'},
-                      'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS_lhand', 'rhand': 'de_DGS_rhand'}}
+                      'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS_lhand', 'rhand': 'de_DGS_rhand'},
+                      'thai': {'body': 'th_THS', 'lhand': 'th_THS_lhand', 'rhand': 'th_THS_rhand'}} #[MODIFIED]: Add thai token
     else:
         src2id = {'how2sign': {'body': 'en_ASL', 'lhand': 'en_ASL', 'rhand': 'en_ASL'}, 
                     'csl': {'body': 'zh_CSL', 'lhand': 'zh_CSL', 'rhand': 'zh_CSL'},
-                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS', 'rhand': 'de_DGS'}}
+                    'phoenix': {'body': 'de_DGS', 'lhand': 'de_DGS', 'rhand': 'de_DGS'},
+                    'thai': {'body': 'th_THS', 'lhand': 'th_THS', 'rhand': 'th_THS'}} #[MODIFIED]: Add thai token
+
     for s in data_src:
         lang_id = tokenizer.convert_tokens_to_ids(src2id[s][part])
         decoder_input_ids.append(lang_id)
@@ -113,15 +118,15 @@ class Mbart_Based_MLM(nn.Module):
         # Add motion tokens
         self.tokenizer = MBartTokenizer.from_pretrained(model_path, legacy=True)
         if model_type == 'mbart_multi_part':
-            new_lang_token = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand', 'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand', 'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand']
+            new_lang_token = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand', 'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand', 'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand', 'th_THS', 'th_THS_lhand', 'th_THS_rhand'] #[MODIFIED]: Add thai token
         else:
-            new_lang_token = ['en_ASL', 'zh_CSL', 'de_DGS']
+            new_lang_token = ['en_ASL', 'zh_CSL', 'de_DGS', 'th_THS'] #[MODIFIED]: Add thai token
         self.tokenizer.add_tokens(new_lang_token, special_tokens=True)
         all_motion_str = [f'<motion_id_{i}>' for i in range(self.m_codebook_size + 3)]
         all_hand_str = [f'<hand_id_{i}>' for i in range(self.hand_codebook_size + 3)] if hand_codebook_size>0 else []
         all_rhand_str = [f'<rhand_id_{i}>' for i in range(self.rhand_codebook_size + 3)] if rhand_codebook_size>0 else []
         self.tokenizer.add_tokens(all_motion_str + all_hand_str + all_rhand_str)
-        self.lang_token_ids = list(map(self.tokenizer.convert_tokens_to_ids, ['en_XX', 'zh_CN', 'de_DE', '<mask>']+new_lang_token))
+        self.lang_token_ids = list(map(self.tokenizer.convert_tokens_to_ids, ['en_XX', 'zh_CN', 'de_DE', 'th_TH', '<mask>']+new_lang_token)) #[MODIFIED]: Add thai token
 
         # set map ids
         with open(os.path.join(model_path, 'map_ids.pkl'), 'rb') as f:
@@ -230,6 +235,9 @@ class Mbart_Based_MLM(nn.Module):
                     cur_string += f" 关键词 {i+1}, "
                 elif sr == 'phoenix':
                     cur_string += f" Schlüsselwort {i+1}, "
+                #[MODIFIED]: Add thai token
+                elif sr == 'thai':
+                    cur_string += f" คำสำคัญ {i+1}, "
                 else:
                     raise NotImplementedError
                 
