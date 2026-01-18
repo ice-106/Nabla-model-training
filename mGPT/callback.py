@@ -83,6 +83,18 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
     # })
     # callbacks.append(ModelCheckpoint(**checkpointParams))
 
+    # [Modified] Save last.ckpt at every epoch
+    callbacks.append(ModelCheckpoint(
+        dirpath=os.path.join(cfg.FOLDER_EXP, "checkpoints"),
+        filename="last",  # This is for the 'save_top_k' files which we disable with k=0
+        monitor="step",
+        mode="max",
+        every_n_epochs=1,
+        save_top_k=0,     # We only want the 'last.ckpt' from save_last=True
+        save_last=True,   # This creates/updates last.ckpt
+        save_on_train_epoch_end=True
+    ))
+
     checkpointParams = {
         'dirpath': os.path.join(cfg.FOLDER_EXP, "checkpoints"),
         'filename': "{epoch}",
@@ -90,7 +102,7 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
         'mode': "max",
         'every_n_epochs': None,  #cfg.LOGGER.VAL_EVERY_STEPS,
         'save_top_k': 1,
-        'save_last': True, #None,
+        'save_last': False, #None, [Modified]: Disable due to save last implemented above
         'save_on_train_epoch_end': False
     }
     # callbacks.append(ModelCheckpoint(**checkpointParams))
