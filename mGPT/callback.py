@@ -90,7 +90,7 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
         monitor="step",
         mode="max",
         every_n_epochs=1,
-        save_top_k=0,     # We only want the 'last.ckpt' from save_last=True
+        save_top_k=1,     # We only want the 'last.ckpt' from save_last=True
         save_last=True,   # This creates/updates last.ckpt
         save_on_train_epoch_end=True
     ))
@@ -102,7 +102,7 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
         'mode': "max",
         'every_n_epochs': None,  #cfg.LOGGER.VAL_EVERY_STEPS,
         'save_top_k': 1,
-        'save_last': False, #None, [Modified]: Disable due to save last implemented above
+        'save_last': False, #None
         'save_on_train_epoch_end': False
     }
     # callbacks.append(ModelCheckpoint(**checkpointParams))
