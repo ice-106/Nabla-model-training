@@ -66,6 +66,18 @@ class Text2MotionDataset(data.Dataset):
             self.csv = self.csv[self.csv['DURATION']<30].reset_index(drop=True) # remove sequences longer than 30 seconds
             self.ids = self.csv['SENTENCE_NAME'] #[:100]
 
+            # [MODIFIED] Add debug to load only one data point.
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                random.seed(self.seed)
+                k = min(self.num_sample, len(self.ids))
+                # self.ids is a pandas Series
+                self.ids = list(self.ids)
+                self.ids = random.sample(self.ids, k)
+                print(f'Subsampling: Loaded {len(self.ids)} samples from How2Sign ({split}) with seed {self.seed}')
+            elif self.debug and split=='train':
+                self.ids = self.ids[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from How2Sign ({split})')
+
             print('loading how2sign data...', len(self.ids))
             for idx in tqdm(range(len(self.ids))):
                 name = self.ids[idx]
@@ -107,6 +119,16 @@ class Text2MotionDataset(data.Dataset):
                 ann_path = os.path.join(self.phoenix_root, f'phoenix14t.{split}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:200]
+
+            # [MODIFIED] Add debug to load only one data point.
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                random.seed(self.seed)
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from Phoenix ({split}) with seed {self.seed}')
+            elif self.debug and split=='train':
+                self.ann = self.ann[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from Phoenix ({split})')
 
             print(f'{split}--loading phoenix data...', len(self.ann))
             for idx in tqdm(range(len(self.ann))):
