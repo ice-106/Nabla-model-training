@@ -149,7 +149,7 @@ class TM2TMetrics(Metric):
                 '''
                 joint_idx = self.joint_part2idx['upper_body']
                 dist_func = partial(l2_dist_align, wanted=joint_idx, align_idx=0)
-                value = dtw(joints_rst_cur, joints_ref_cur, dist_func)[0]
+                value = dtw(joints_rst_cur, joints_ref_cur, dist_func)[0] # get the minimum distance
                 setattr(self, f'{data_src}_DTW_MPJPE_PA_body', getattr(self, f'{data_src}_DTW_MPJPE_PA_body') + value)
                 self.name2scores[cur_name][f'{data_src}_DTW_MPJPE_PA_body'] = value
                 # print('body: ', value)
