@@ -122,7 +122,33 @@ def parse_args(phase="train"):
                            action="store_true",
                            required=False,
                            help="debug or not")
-
+        
+        # [MODIFIED]: Add argument for text-only inference
+        # Inference mode arguments
+        group.add_argument("--infer",
+                           action="store_true",
+                           required=False,
+                           help="enable inference mode (text-to-motion generation)")
+        group.add_argument("--text",
+                           type=str,
+                           nargs="+",
+                           required=False,
+                           help="input text(s) to generate motion for")
+        group.add_argument("--src",
+                           type=str,
+                           required=False,
+                           choices=["how2sign", "csl", "phoenix", "thai"],
+                           help="source language/dataset (how2sign, csl, phoenix, thai)")
+        group.add_argument("--output_dir",
+                           type=str,
+                           required=False,
+                           default="./infer_output",
+                           help="output directory for inference results")
+        group.add_argument("--fps",
+                           type=int,
+                           required=False,
+                           default=20,
+                           help="video frame rate for inference output")
 
     if phase == "demo":
         group.add_argument("--task",

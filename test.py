@@ -1,5 +1,8 @@
 import json
 import os
+# [MODIFIED]: for rendering video
+# Set per-process environment variable for headless rendering
+os.environ["PYOPENGL_PLATFORM"] = "egl"
 import numpy as np
 import pytorch_lightning as pl
 import torch.distributed as dist
@@ -13,6 +16,8 @@ from mGPT.data.build_data import build_data
 from mGPT.models.build_model import build_model
 from mGPT.utils.logger import create_logger
 from mGPT.utils.load_checkpoint import load_pretrained, load_pretrained_vae
+# [MODIFIED]
+from mGPT.inference import run_inference
 
 
 def print_table(title, metrics, logger=None):
@@ -69,6 +74,24 @@ def main():
     model = build_model(cfg, datamodule)
     logger.info("model {} loaded".format(cfg.model.target))
 
+    # [MODIFIED]: Reordered to load model before inference the code
+    # Strict load vae model
+    if cfg.TRAIN.PRETRAINED_VAE:
+        load_pretrained_vae(cfg, model, logger)
+
+    # loading state dict
+    if not cfg.TEST.CHECKPOINTS:
+        ckpt_folder = os.path.join(cfg.FOLDER_EXP.replace('results', 'experiments'), 'checkpoints')
+        cfg.TEST.CHECKPOINTS = os.path.join(ckpt_folder, 'last.ckpt')
+    load_pretrained(cfg, model, logger, phase="test")
+    cfg.TIME = cfg.TEST.CHECKPOINTS.split('/')[-1]
+    
+    # Check if inference mode is enabled
+    if cfg.INFER:
+        logger.info("Running in inference mode...")
+        run_inference(cfg, model, datamodule, logger)
+        return
+
     # Lightning Trainer
     trainer = pl.Trainer(
         benchmark=False,
@@ -85,17 +108,6 @@ def main():
         logger=None,
         callbacks=callbacks,
     )
-
-    # Strict load vae model
-    if cfg.TRAIN.PRETRAINED_VAE:
-        load_pretrained_vae(cfg, model, logger)
-
-    # loading state dict
-    if not cfg.TEST.CHECKPOINTS:
-        ckpt_folder = os.path.join(cfg.FOLDER_EXP.replace('results', 'experiments'), 'checkpoints')
-        cfg.TEST.CHECKPOINTS = os.path.join(ckpt_folder, 'last.ckpt')
-    load_pretrained(cfg, model, logger, phase="test")
-    cfg.TIME = cfg.TEST.CHECKPOINTS.split('/')[-1]
 
     # Calculate metrics
     all_metrics = {}
