@@ -1,6 +1,6 @@
 import importlib
 from argparse import ArgumentParser
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, open_dict
 from os.path import join as pjoin
 import os
 import glob
@@ -224,6 +224,15 @@ def parse_args(phase="train"):
             cfg.DEBUG = False
             # cfg.DEVICE = [0]
             print("Force no debugging when testing")
+
+        # [MODIFIED]: Fixed attribute error
+        # Inference mode configuration
+            with open_dict(cfg):
+                cfg.INFER = params.infer if hasattr(params, 'infer') else False
+                cfg.INFER_TEXT = params.text if hasattr(params, 'text') else None
+                cfg.INFER_SRC = params.src if hasattr(params, 'src') else None
+                cfg.INFER_OUTPUT_DIR = params.output_dir if hasattr(params, 'output_dir') else "./infer_output"
+                cfg.INFER_FPS = params.fps if hasattr(params, 'fps') else 20
 
     if phase == "demo":
         cfg.DEMO_DATASET = params.demo_dataset
