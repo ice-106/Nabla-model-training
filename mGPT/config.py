@@ -1,6 +1,6 @@
 import importlib
 from argparse import ArgumentParser
-from omegaconf import OmegaConf, open_dict
+from omegaconf import OmegaConf
 from os.path import join as pjoin
 import os
 import glob
@@ -142,7 +142,7 @@ def parse_args(phase="train"):
         group.add_argument("--output_dir",
                            type=str,
                            required=False,
-                           default="./infer_output",
+                           default="./results/infer_output",
                            help="output directory for inference results")
         group.add_argument("--fps",
                            type=int,
@@ -225,14 +225,13 @@ def parse_args(phase="train"):
             # cfg.DEVICE = [0]
             print("Force no debugging when testing")
 
-        # [MODIFIED]: Fixed attribute error
-        # Inference mode configuration
-            with open_dict(cfg):
-                cfg.INFER = params.infer if hasattr(params, 'infer') else False
-                cfg.INFER_TEXT = params.text if hasattr(params, 'text') else None
-                cfg.INFER_SRC = params.src if hasattr(params, 'src') else None
-                cfg.INFER_OUTPUT_DIR = params.output_dir if hasattr(params, 'output_dir') else "./infer_output"
-                cfg.INFER_FPS = params.fps if hasattr(params, 'fps') else 20
+            # [MODIFIED]: Fixed attribute error
+            # Inference mode configuration
+            cfg.INFER = params.infer if hasattr(params, 'infer') else False
+            cfg.INFER_TEXT = params.text if hasattr(params, 'text') else None
+            cfg.INFER_SRC = params.src if hasattr(params, 'src') else None
+            cfg.INFER_OUTPUT_DIR = params.output_dir if hasattr(params, 'output_dir') else "./results/infer_output"
+            cfg.INFER_FPS = params.fps if hasattr(params, 'fps') else 20
 
     if phase == "demo":
         cfg.DEMO_DATASET = params.demo_dataset

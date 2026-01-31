@@ -130,7 +130,11 @@ def run_inference(cfg, model, datamodule, logger):
             feats_rst = feats_rst[:, :rst_len, :]
             
             # Convert features to SMPL-X vertices
-            vertices = feats2joints(feats_rst)  # Returns vertices
+            ret = feats2joints(feats_rst)  # Returns (vertices, joints) or vertices
+            if isinstance(ret, tuple):
+                vertices = ret[0]
+            else:
+                vertices = ret
             
             # Save .pkl file
             safe_text = "".join(c if c.isalnum() or c in ' -_' else '_' for c in text)[:50]
