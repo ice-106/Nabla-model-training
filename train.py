@@ -4,7 +4,7 @@ import torch
 import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
-from lightning.pytorch.plugins.io import AsyncCheckpointIO
+from pytorch_lightning.plugins.io import AsyncCheckpointIO
 from omegaconf import OmegaConf
 from mGPT.callback import build_callbacks
 from mGPT.config import parse_args, instantiate_from_config
