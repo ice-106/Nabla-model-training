@@ -1,7 +1,9 @@
-NAME: DETO # Experiment names
+NAME: DETO-3-Dataset-Cont-50ep+77ep-DTW-PA-JPE # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
+# [MODIFIED]
+DEBUG: True # Debug mode
 
 TRAIN:
   #---------------------------------
@@ -34,7 +36,7 @@ EVAL:
 
 TEST:
   CHECKPOINTS: ../pretrained/tokenizer.ckpt
-  SPLIT: test
+  SPLIT: train
   BATCH_SIZE: 16 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: False
@@ -42,7 +44,9 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: csl
+    DATASET_NAME: how2sign_csl_phoenix
+    DEBUG: True # [MODIFIED] Set to True to train only one data point.
+    NUM_SAMPLE: 24  # [MODIFIED] Set to integer to sample subset (e.g. 100).
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
