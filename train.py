@@ -4,7 +4,7 @@ import torch
 import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.strategies import DDPStrategy
-from pytorch_lightning.plugins.io import AsyncCheckpointIO
+# from pytorch_lightning.plugins.io import AsyncCheckpointIO
 from omegaconf import OmegaConf
 from mGPT.callback import build_callbacks
 from mGPT.config import parse_args, instantiate_from_config
@@ -71,7 +71,7 @@ def main():
         num_nodes=cfg.NUM_NODES,
         strategy="ddp_find_unused_parameters_true" if len(cfg.DEVICE) > 1 else 'auto',
         # strategy=DDPStrategy(process_group_backend="nccl"),
-        plugins=[AsyncCheckpointIO()],
+        # plugins=[AsyncCheckpointIO()],
         benchmark=False,
         deterministic=False,
         # num_sanity_val_steps=0,  #for debug
