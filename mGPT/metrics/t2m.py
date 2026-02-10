@@ -25,6 +25,11 @@ class TM2TMetrics(Metric):
         self.cfg = cfg
         self.dataname = dataname
         self.name = "MPJPE, MPVPE DTW"
+
+        # [MODIFIED]: To enable DTW-PA-JPE
+        # DTW alignment mode: 'jpe' uses root joint alignment (align_idx=0), 'pa' uses Procrustes alignment (align_idx=None)
+        dtw_mode = getattr(cfg.METRIC, 'DTW_ALIGN_MODE', 'jpe')
+        self.dtw_align_idx = 0 if dtw_mode == 'jpe' else None
         # self.top_k = top_k
         # self.R_size = R_size
         # self.text = 'lm' in cfg.TRAIN.STAGE and cfg.model.params.task == 't2m'
@@ -145,10 +150,13 @@ class TM2TMetrics(Metric):
 
             if split in ['val', 'test']:
                 '''
-                Note that when align_idx=0, the metric is DTW-JPE; when align_idx=None, the metric is DTW-PA-JPE. But we didn't modify the variable names.
+                [MODIFIED]: to match the modified code
+                Note that when align_idx=0, the metric is DTW-JPE; when align_idx=None, the metric is DTW-PA-JPE.
+                This is controlled by METRIC.DTW_ALIGN_MODE in config ('jpe' or 'pa').
                 '''
                 joint_idx = self.joint_part2idx['upper_body']
-                dist_func = partial(l2_dist_align, wanted=joint_idx, align_idx=0)
+                # [MODIFIED]: to enable DTW-PA-JPE
+                dist_func = partial(l2_dist_align, wanted=joint_idx, align_idx=self.dtw_align_idx)
                 value = dtw(joints_rst_cur, joints_ref_cur, dist_func)[0] # get the minimum distance
                 setattr(self, f'{data_src}_DTW_MPJPE_PA_body', getattr(self, f'{data_src}_DTW_MPJPE_PA_body') + value)
                 self.name2scores[cur_name][f'{data_src}_DTW_MPJPE_PA_body'] = value
@@ -166,7 +174,9 @@ class TM2TMetrics(Metric):
                 joint_idx = self.joint_part2idx['rhand']
                 joint_gt_rhand = torch.matmul(smpl_x.orig_hand_regressor['right'], mesh_gt).float().numpy()
                 joint_out_rhand = torch.matmul(smpl_x.orig_hand_regressor['right'], mesh_out).float().numpy()
-                dist_func = partial(l2_dist_align, align_idx=0)
+                
+                # [MODIFIED]: to enable DTW-PA-JPE
+                dist_func = partial(l2_dist_align, align_idx=self.dtw_align_idx)
                 value = dtw(joint_out_rhand, joint_gt_rhand, dist_func)[0]
                 setattr(self, f"{data_src}_DTW_MPJPE_PA_rhand", getattr(self, f"{data_src}_DTW_MPJPE_PA_rhand") + value)
                 self.name2scores[cur_name][f"{data_src}_DTW_MPJPE_PA_rhand"] = value
