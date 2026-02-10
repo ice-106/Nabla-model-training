@@ -66,6 +66,20 @@ class H2SMotionDatasetVQ(data.Dataset):
             self.csv['DURATION'] = self.csv['END_REALIGNED'] - self.csv['START_REALIGNED']
             self.csv = self.csv[self.csv['DURATION']<30].reset_index(drop=True) # remove sequences longer than 30 seconds
             self.ids = self.csv['SENTENCE_NAME'] #[:200]
+            
+            # [MODIFIED] Add debug to load only one data point.
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                import random
+                random.seed(self.seed)
+                # self.ids is a pandas Series, convert to list
+                id_list = self.ids.tolist()
+                id_list.sort() # Ensure deterministic order
+                k = min(self.num_sample, len(id_list))
+                self.ids = random.sample(id_list, k)
+                print(f'Subsampling: Loaded {len(self.ids)} samples from How2Sign ({split}) with seed {self.seed}')
+            elif self.debug and split == 'train':
+                self.ids = self.ids[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from How2Sign ({split})')
 
             print(f'{split}--loading how2sign annotations...', len(self.ids))
             for idx in tqdm(range(len(self.ids))):
@@ -88,6 +102,8 @@ class H2SMotionDatasetVQ(data.Dataset):
             if self.num_sample is not None and self.num_sample > 0 and split=='train':
                 import random
                 random.seed(self.seed)
+                # Sort annotation list by name
+                self.ann.sort(key=lambda x: x['name'])
                 k = min(self.num_sample, len(self.ann))
                 self.ann = random.sample(self.ann, k)
                 print(f'Subsampling: Loaded {len(self.ann)} samples from CSL ({split}) with seed {self.seed}')
@@ -109,6 +125,19 @@ class H2SMotionDatasetVQ(data.Dataset):
                 ann_path = os.path.join(self.phoenix_root, f'phoenix14t.{split}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:200]
+
+            # [MODIFIED] Add debug to load only one data point.
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                import random
+                random.seed(self.seed)
+                # Sort annotation list by name
+                self.ann.sort(key=lambda x: x['name'])
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from Phoenix ({split}) with seed {self.seed}')
+            elif self.debug and split == 'train':
+                self.ann = self.ann[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from Phoenix ({split})')
 
             print(f'{split}--loading phoenix annotations...', len(self.ann))
             for idx in tqdm(range(len(self.ann))):

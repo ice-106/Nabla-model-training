@@ -91,6 +91,7 @@ class Text2MotionDatasetCB(data.Dataset):
                 # Convert Series to list for sampling if needed, or sample indices
                 # self.ids is a pandas Series
                 self.ids = list(self.ids)
+                self.ids.sort() # Ensure deterministic order
                 self.ids = random.sample(self.ids, k)
                 print(f'Subsampling: Loaded {len(self.ids)} samples from How2Sign ({split}) with seed {self.seed}')
             elif self.debug and split=='train':
@@ -121,6 +122,8 @@ class Text2MotionDatasetCB(data.Dataset):
             # [MODIFIED] Add debug to load only one data point.
             if self.num_sample is not None and self.num_sample > 0 and split=='train':
                 random.seed(self.seed)
+                # Sort annotation list by name
+                self.ann.sort(key=lambda x: x['name'])
                 k = min(self.num_sample, len(self.ann))
                 self.ann = random.sample(self.ann, k)
                 print(f'Subsampling: Loaded {len(self.ann)} samples from CSL ({split}) with seed {self.seed}')
@@ -150,6 +153,8 @@ class Text2MotionDatasetCB(data.Dataset):
             # [MODIFIED] Add debug to load only one data point.
             if self.num_sample is not None and self.num_sample > 0 and split=="train":
                 random.seed(self.seed)
+                # Sort annotation list by name
+                self.ann.sort(key=lambda x: x['name'])
                 k = min(self.num_sample, len(self.ann))
                 self.ann = random.sample(self.ann, k)
                 print(f'Subsampling: Loaded {len(self.ann)} samples from Phoenix ({split}) with seed {self.seed}')
