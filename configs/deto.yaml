@@ -39,7 +39,7 @@ TEST:
   SPLIT: train
   BATCH_SIZE: 16 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
-  SAVE_PREDICTIONS: False
+  SAVE_PREDICTIONS: True
 
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
