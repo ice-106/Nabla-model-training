@@ -51,8 +51,8 @@ DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
     DATASET_NAME: csl
-    DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
-    NUM_SAMPLE: 16 #[MODIFIED] Set to 'None' to do full training.
+    DEBUG: False #[MODIFIED] Set to True to train only one data point. Set True to do full train.
+    NUM_SAMPLE:  #[MODIFIED] Set to 'None' to do full training.
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -69,6 +69,8 @@ DATASET:
 
 METRIC:
   TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'pa'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
 
 LOSS:
   LAMBDA_FEATURE: 1.0

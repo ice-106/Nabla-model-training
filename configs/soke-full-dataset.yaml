@@ -5,8 +5,9 @@
 # 4. Verify RESUME whether you want to continue or not
 # 5. Verify Wandb Name
 # 6. Set Epcoh to original (150)
+# 7. Check the type of metric (PA, Non-PA)
 
-NAME: SOKE-3-Dataset-Cont-50ep-v2-2 # Experiment names: Set new name to create new experiment!
+NAME: SOKE-3-Dataset-Cont-50ep+77ep-DTW-PA-JPE-2 # Experiment names: Set new name to create new experiment!
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
@@ -19,9 +20,9 @@ TRAIN:
   NUM_WORKERS: 16 # Number of workers
   BATCH_SIZE: 32 # Size of batches
   END_EPOCH: 100 # [MODIFIED] End epoch, orginally 150
-  RESUME: '' # Resume training from this path, folder to log and checkpoints
+  RESUME: './experiments/mgpt/SOKE-3-Dataset-Cont-50ep-v2' # Resume training from this path, folder to log and checkpoints
   # Resume caused a weird behavior when END_EPOCH > previous END_EPOCH, causing the lr to rise.
-  PRETRAINED: './experiments/mgpt/SOKE-3-Dataset/checkpoints/last.ckpt' # Preatrained model path, path to check point
+  PRETRAINED: '' # Preatrained model path, path to check point
   PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
 
   OPTIM:
@@ -43,7 +44,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-3-Dataset-Cont-50ep-v2/checkpoints/min-csl_DTW_MPJPE_PA_lhandepoch=69.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-3-Dataset-Cont-50ep+77ep/checkpoints/last.ckpt"
   SPLIT: train # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -54,7 +55,7 @@ DATASET:
   H2S:
     DATASET_NAME: how2sign_csl_phoenix
     DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
-    NUM_SAMPLE: 8 #[MODIFIED] Set to 'None' to do full training.
+    NUM_SAMPLE: 24 #[MODIFIED] Set to 'None' to do full training.
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -71,6 +72,8 @@ DATASET:
 
 METRIC:
   TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
 
 LOSS:
   LAMBDA_FEATURE: 1.0

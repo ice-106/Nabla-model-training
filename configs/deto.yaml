@@ -37,7 +37,7 @@ EVAL:
 TEST:
   CHECKPOINTS: ../pretrained/tokenizer.ckpt
   SPLIT: train
-  BATCH_SIZE: 16 # training Batch size
+  BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: True
 
