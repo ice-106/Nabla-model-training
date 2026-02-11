@@ -9,7 +9,8 @@ from os.path import join as pjoin
 import torch
 import pandas as pd
 from tqdm import tqdm
-import random; random.seed(0)
+# Removed module-level random.seed(0) to prevent interference with per-dataset seeding
+# import random; random.seed(0) 
 from copy import deepcopy
 from .load_data import load_csl_sample, load_h2s_sample, load_phoenix_sample
 

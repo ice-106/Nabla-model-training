@@ -12,7 +12,8 @@ from os.path import join as pjoin
 from .dataset_m import MotionDataset
 from .dataset_t2m import Text2MotionDataset
 from .load_data import load_h2s_sample, load_csl_sample, load_phoenix_sample, load_iso_sample
-import random; random.seed(0)
+# Removed module-level random.seed(0) to prevent interference with per-dataset seeding
+# import random; random.seed(0)
 import json
 from copy import deepcopy
 
