@@ -89,7 +89,7 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
         filename="last",  # This is for the 'save_top_k' files which we disable with k=0
         monitor="step",
         mode="max",
-        every_n_epochs=1,
+        every_n_epochs=5,
         save_top_k=1,     # We only want the 'last.ckpt' from save_last=True
         save_last=True,   # This creates/updates last.ckpt
         save_on_train_epoch_end=True
