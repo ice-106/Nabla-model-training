@@ -3,7 +3,7 @@ ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu�
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
 # [MODIFIED]
-DEBUG: True # Debug mode
+DEBUG: False # Debug mode
 
 TRAIN:
   #---------------------------------
@@ -36,7 +36,7 @@ EVAL:
 
 TEST:
   CHECKPOINTS: ../pretrained/tokenizer.ckpt
-  SPLIT: train
+  SPLIT: test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: True
@@ -45,8 +45,8 @@ DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
     DATASET_NAME: how2sign_csl_phoenix
-    DEBUG: True # [MODIFIED] Set to True to train only one data point.
-    NUM_SAMPLE: 24  # [MODIFIED] Set to integer to sample subset (e.g. 100).
+    DEBUG: False # [MODIFIED] Set to True to train only one data point.
+    NUM_SAMPLE:   # [MODIFIED] Set to integer to sample subset (e.g. 100).
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
