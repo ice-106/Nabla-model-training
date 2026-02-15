@@ -84,7 +84,6 @@ class Text2MotionDatasetCB(data.Dataset):
 
             # [MODIFIED] Add debug to load only one data point.
             if self.num_sample is not None and self.num_sample > 0 and split=='train':
-                import random
                 random.seed(self.seed)
                 # Ensure we don't try to sample more than available
                 k = min(self.num_sample, len(self.ids))
