@@ -12,7 +12,7 @@ from tqdm import tqdm
 # Removed module-level random.seed(0) to prevent interference with per-dataset seeding
 # import random; random.seed(0) 
 from copy import deepcopy
-from .load_data import load_csl_sample, load_h2s_sample, load_phoenix_sample
+from .load_data import load_csl_sample, load_h2s_sample, load_phoenix_sample, load_thai_sample # [MODIFIED]: Import new Thai loading function
 
 # Some how2sign ids are broken, failing in pose fitting.
 bad_how2sign_ids = ['0DU7wWLK-QU_0-8-rgb_front', '0ICZi26jdaQ_28-5-rgb_front', '0vNfEYst_tQ_11-8-rgb_front', '13X0vEMNm7M_8-5-rgb_front', '14weIYQswlE_23-8-rgb_front', '1B56XMJ-j1Q_13-8-rgb_front', '1P0oKY4FNyI_0-8-rgb_front', '1dpRaxOTfZs_0-8-rgb_front', '1ei1kVTw23A_29-8-rgb_front', '1spCnuBmWYk_0-8-rgb_front', '2-vXO7MMLJc_0-5-rgb_front', '21PbS6wnHtY_0-5-rgb_front', '3tyfxL2wO-M_0-8-rgb_front', 'BpYDl3AO4B8_0-1-rgb_front', 'CH7AviIr0-0_14-8-rgb_front', 'CJ8RyW9pzKU_6-8-rgb_front', 'D0T7ho08Q3o_25-2-rgb_front', 'Db5SUQvNsHc_18-1-rgb_front', 'Eh697LCFjTw_0-3-rgb_front', 'F-p1IdedNbg_23-8-rgb_front', 'aUBQCNegrYc_13-1-rgb_front', 'cvn7htBA8Xc_9-8-rgb_front', 'czBrBQgZIuc_19-5-rgb_front', 'dbSAB8F8GYc_11-9-rgb_front', 'doMosV-zfCI_7-2-rgb_front', 'dvBdWGLzayI_10-8-rgb_front', 'eBrlZcccILg_26-3-rgb_front', '39FN42e41r0_17-1-rgb_front', 'a4Nxq0QV_WA_9-3-rgb_front', 'fzrJBu2qsM8_11-8-rgb_front', 'g3Cc_1-V31U_12-3-rgb_front']
@@ -44,6 +44,7 @@ class Text2MotionDataset(data.Dataset):
         self.unit_length = unit_length
         self.csl_root = kwargs.get('csl_root', None)
         self.phoenix_root = kwargs.get('phoenix_root', None)
+        self.thai_root = kwargs.get('thai_root', None) # [MODIFIED]: Add Thai root path
         self.debug = debug #[MODIFIED] Added debug flag
         self.num_sample = kwargs.get('num_sample', None) #[MODIFIED]
         self.seed = kwargs.get('seed', None) #[MODIFIED]
@@ -57,7 +58,7 @@ class Text2MotionDataset(data.Dataset):
         assert max_motion_length % unit_length == 0 and min_motion_length % unit_length == 0
 
         self.all_data = []
-        self.h2s_len = self.csl_len = self.phoenix_len = 0
+        self.h2s_len = self.csl_len = self.phoenix_len = self.thai_len = 0 # [MODIFIED]: Initialize Thai counter
         if 'how2sign' in dataset_name:
             self.data_dir = os.path.join(data_root, split, 'poses')
             self.csv_path = os.path.join(data_root, split, 're_aligned', 'how2sign_realigned_'+split+'_preprocessed_fps.csv')
@@ -141,6 +142,31 @@ class Text2MotionDataset(data.Dataset):
                 self.all_data.append(ann)
             self.phoenix_len += len(self.ann)
 
+        if 'thai' in dataset_name: # [MODIFIED]: Add logic to load Thai dataset
+            if split == 'val':
+                ann_path = os.path.join(self.thai_root, 'thai.dev')
+            else:
+                ann_path = os.path.join(self.thai_root, f'thai.{split}')
+            with gzip.open(ann_path, 'rb') as f:
+                self.ann = pickle.load(f)
+
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                random.seed(self.seed)
+                self.ann.sort(key=lambda x: x['name'])
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from Thai ({split}) with seed {self.seed}')
+            elif self.debug and split=='train':
+                self.ann = self.ann[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from Thai ({split})')
+
+            print(f'{split}--loading thai data...', len(self.ann))
+            for idx in tqdm(range(len(self.ann))):
+                ann = deepcopy(self.ann[idx])
+                ann['src'] = 'thai'
+                self.all_data.append(ann)
+            self.thai_len += len(self.ann)
+
         # random.shuffle(self.all_data)
         print(f'Data loading done. All: {len(self.all_data)}, How2Sign: {self.h2s_len}, CSL: {self.csl_len}, Phoenix: {self.phoenix_len}')
         self.nfeats = 133
@@ -168,6 +194,9 @@ class Text2MotionDataset(data.Dataset):
             clip_poses, text, name, _ = load_csl_sample(sample, self.csl_root)
         elif src == 'phoenix':
             clip_poses, text, name, _ = load_phoenix_sample(sample, self.phoenix_root)
+        elif src == 'thai':
+            # [MODIFIED]: Call specific loading function for Thai
+            clip_poses, text, name, _ = load_thai_sample(sample, self.thai_root)
         
         all_captions = [text]
 

@@ -193,6 +193,45 @@ def load_phoenix_sample(ann, data_dir, need_pose=True, code_path=None, need_code
 
     return clip_poses, clip_text, name, code
 
+# [MODIFIED]: add sample loading for Thai dataset
+def load_thai_sample(ann, data_dir, need_pose=True, code_path=None, need_code=False):
+    clip_text = ann['text']
+    name = ann['name']
+    
+    # Assumes 'poses/name/*.pkl' structure similar to CSL
+    pose_dir = os.path.join(data_dir, 'poses', name)
+    if not os.path.exists(pose_dir):
+        # Fallback or error handling if structure differs
+        return None, None, None, None
+
+    frame_list = sorted(os.listdir(pose_dir))
+    if len(frame_list) < 4:
+        return None, None, None, None
+
+    clip_poses = np.zeros([len(frame_list), 179])
+    if need_pose:
+        for frame_id, frame in enumerate(frame_list):
+            frame = os.path.join(pose_dir, frame)
+            with open(frame, 'rb') as f: 
+                poses = pickle.load(f)
+
+            pose = np.concatenate([poses[key] for key in keys], 0)
+            clip_poses[frame_id] = pose
+
+        clip_poses = clip_poses[:,(3+3*11):] # Remove the first 36 features
+        # remove shape (lower body)
+        clip_poses = np.concatenate([clip_poses[:, :-20], clip_poses[:, -10:]], axis=1) #179-36-20+10=133
+
+    code = None
+    if need_code:
+        try:
+            fname = os.path.join(code_path, 'thai', f'{name}.npy')
+            code = np.load(fname)[0]
+        except:
+            fname = os.path.join(code_path, f'{name}.npy')
+            code = np.load(fname)[0]
+
+    return clip_poses, clip_text, name, code
 
 def sample(input,count):
     ss=float(len(input))/count

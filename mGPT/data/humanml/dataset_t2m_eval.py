@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import torch, os, pickle, math
-from .load_data import load_csl_sample, load_h2s_sample, load_phoenix_sample
+from .load_data import load_csl_sample, load_h2s_sample, load_phoenix_sample, load_thai_sample # [MODIFIED]: Import new Thai loading function
 from .dataset_t2m import Text2MotionDataset
 
 
@@ -41,6 +41,9 @@ class Text2MotionDatasetEval(Text2MotionDataset):
             clip_poses, text, name, _ = load_csl_sample(sample, self.csl_root)
         elif src == 'phoenix':
             clip_poses, text, name, _ = load_phoenix_sample(sample, self.phoenix_root)
+        elif src == 'thai':
+            # [MODIFIED]: Call specific loading function for Thai
+            clip_poses, text, name, _ = load_thai_sample(sample, self.thai_root)
         
         # [MODIFIED] Handle none case
         if clip_poses is None:
