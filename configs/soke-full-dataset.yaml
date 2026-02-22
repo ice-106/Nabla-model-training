@@ -1,14 +1,14 @@
 # Checklist
 # 1. Change Name
 # 2. Disable Debug mode (Two places)
-# 3. Verify dataset name 
+# 3. Verify dataset name
 # 4. Verify RESUME whether you want to continue or not
 # 5. Verify Wandb Name
 # 6. Set Epcoh to original (150)
 # 7. Check the type of metric (PA, Non-PA)
 
 NAME: SOKE-3-Dataset-Cont-50ep+77ep-DTW-PA-JPE-2 # Experiment names: Set new name to create new experiment!
-ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
+ACCELERATOR: "gpu" # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
 DEBUG: True #[MODIFIED] Add debug mode
@@ -20,10 +20,10 @@ TRAIN:
   NUM_WORKERS: 16 # Number of workers
   BATCH_SIZE: 32 # Size of batches
   END_EPOCH: 100 # [MODIFIED] End epoch, orginally 150
-  RESUME: './experiments/mgpt/SOKE-3-Dataset-Cont-50ep-v2' # Resume training from this path, folder to log and checkpoints
+  RESUME: "./experiments/mgpt/SOKE-3-Dataset-Cont-50ep-v2" # Resume training from this path, folder to log and checkpoints
   # Resume caused a weird behavior when END_EPOCH > previous END_EPOCH, causing the lr to rise.
-  PRETRAINED: '' # Preatrained model path, path to check point
-  PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
+  PRETRAINED: "" # Preatrained model path, path to check point
+  PRETRAINED_VAE: "../pretrained/tokenizer.ckpt" # Vae model path
 
   OPTIM:
     target: AdamW
@@ -31,11 +31,11 @@ TRAIN:
       lr: 1e-5 # Originally, 2e-4
       betas: [0.9, 0.99]
       weight_decay: 0.0
-  
+
   LR_SCHEDULER:
     target: CosineAnnealingLR
     params:
-      T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
+      T_max: ${TRAIN.END_EPOCH} #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
       eta_min: 1e-6
 
 # Evaluating Configuration
@@ -44,7 +44,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-3-Dataset-Cont-50ep+77ep/checkpoints/last.ckpt"
+  CHECKPOINTS: "../deps/St2_Checkpoint.ckpt" #stage 2
   SPLIT: train # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -59,8 +59,8 @@ DATASET:
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
-    MEAN_PATH: ../data/CSL-Daily/mean.pt
-    STD_PATH: ../data/CSL-Daily/std.pt
+    MEAN_PATH: mGPT/data/CSL_Daily/mean.pt
+    STD_PATH: mGPT/data/CSL_Daily/std.pt
     MAX_MOTION_LEN: 400
     MIN_MOTION_LEN: 40
     MAX_TEXT_LEN: 40
@@ -71,9 +71,9 @@ DATASET:
   CODE_PATH: TOKENS_h2s_csl_phoenix
 
 METRIC:
-  TYPE: ['TM2TMetrics']
+  TYPE: ["TM2TMetrics"]
   # [MODIFIED]: To enable DTW-PA-JPE
-  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
+  DTW_ALIGN_MODE: "jpe" # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
 
 LOSS:
   LAMBDA_FEATURE: 1.0
@@ -81,24 +81,23 @@ LOSS:
   LAMBDA_COMMIT: 0.02
   LAMBDA_CLS: 1.0
   ABLATION:
-    RECONS_LOSS: 'l1_smooth'
+    RECONS_LOSS: "l1_smooth"
 
 model:
   target: mGPT.models.mgpt.MotionGPT
   params:
-    condition: 'text'
-    task: 't2m'
+    condition: "text"
+    task: "t2m"
     lm: ${lm.mbart_h2s_csl_phoenix}
     motion_vae: ${vq.re96}
     hand_vae_cfg: ${vq.hand192}
     rhand_vae_cfg: ${vq.hand192}
 
 LOGGER:
-  TYPE: ['wandb']
+  TYPE: ["wandb"]
   VAL_EVERY_STEPS: 5
   WANDB:
     params:
       project: SLG-Lanta-3-Dataset
       # id: "ygajm5v9"
       # resume: "must"
-      
