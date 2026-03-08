@@ -174,12 +174,12 @@ class Text2MotionDatasetCB(data.Dataset):
             self.phoenix_len = len(self.ann)
 
         if 'thai' in dataset_name: # [MODIFIED]: Add logic to load Thai dataset
-            if split == 'val':
-                ann_path = os.path.join(self.thai_root, 'thai.dev')
+            if split == 'train':
+                ann_path = os.path.join(self.thai_root, 'val_vid.train')
             else:
-                ann_path = os.path.join(self.thai_root, f'thai.{split}')
+                ann_path = os.path.join(self.thai_root, f'val_vid.{split}')
             with gzip.open(ann_path, 'rb') as f:
-                self.ann = pickle.load(f)
+                self.ann = pickle.load(f) #[:800]
 
             if self.num_sample is not None and self.num_sample > 0 and split=="train":
                 random.seed(self.seed)
@@ -198,7 +198,7 @@ class Text2MotionDatasetCB(data.Dataset):
                 self.all_data.append(ann)
             self.thai_len = len(self.ann)
 
-        print(f'Data loading done. All: {len(self.all_data)}, How2Sign: {self.h2s_len}, CSL: {self.csl_len}, Phoenix: {self.phoenix_len}')
+        print(f'Data loading done. All: {len(self.all_data)}, How2Sign: {self.h2s_len}, CSL: {self.csl_len}, Phoenix: {self.phoenix_len}, Thai: {self.thai_len}')
 
         # self.nlp = spacy.load('en_core_web_sm')
         self.std_text = std_text

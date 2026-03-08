@@ -25,6 +25,7 @@ class H2SDataModule(BASEDataModule):
         self.hparams.dataset_name = cfg.DATASET.H2S.DATASET_NAME
         self.hparams.csl_root = cfg.DATASET.H2S.CSL_ROOT
         self.hparams.phoenix_root = cfg.DATASET.H2S.get('PHOENIX_ROOT', None)
+        self.hparams.thai_root = cfg.DATASET.H2S.get("THAI_ROOT", None)
         self.hparams.pred_data_dir = cfg.DATASET.H2S.get('pred_data_dir', False)
         
         # Path to the dataset
