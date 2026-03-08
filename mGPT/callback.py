@@ -47,6 +47,9 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
         "phoenix_DTW_MPJPE_PA_lhand": "Metrics/phoenix_DTW_MPJPE_PA_lhand",
         "phoenix_DTW_MPJPE_PA_rhand": "Metrics/phoenix_DTW_MPJPE_PA_rhand",
         "phoenix_DTW_MPJPE_PA_body": "Metrics/phoenix_DTW_MPJPE_PA_body",
+        "thai_DTW_MPJPE_PA_lhand": "Metrics/thai_DTW_MPJPE_PA_lhand",  # [MODIFIED]: Add Thai metrics
+        "thai_DTW_MPJPE_PA_rhand": "Metrics/thai_DTW_MPJPE_PA_rhand",  # [MODIFIED]: Add Thai metrics
+        "thai_DTW_MPJPE_PA_body": "Metrics/thai_DTW_MPJPE_PA_body",  # [MODIFIED]: Add Thai metrics
         "how2sign_MPVPE_PA_all": "Metrics/how2sign_MPVPE_PA_all",
         "how2sign_MPJPE_PA_hand": "Metrics/how2sign_MPJPE_PA_hand",
         "csl_MPVPE_PA_all": "Metrics/csl_MPVPE_PA_all",
@@ -138,6 +141,14 @@ def getCheckpointCallback(cfg, logger=None, **kwargs):
             },
             # 'Metrics/phoenix_DTW_MPJPE_PA_body': {
             #     'abbr': 'phoenix_DTW_MPJPE_PA_body',
+            #     'mode': 'min'
+            # }
+            'Metrics/thai_DTW_MPJPE_PA_lhand': {  # [MODIFIED]: Add Thai metrics
+                'abbr': 'thai_DTW_MPJPE_PA_lhand',
+                'mode': 'min'
+            },
+            # 'Metrics/thai_DTW_MPJPE_PA_body': {  # [MODIFIED]: Add Thai metrics
+            #     'abbr': 'thai_DTW_MPJPE_PA_body',
             #     'mode': 'min'
             # }
         },

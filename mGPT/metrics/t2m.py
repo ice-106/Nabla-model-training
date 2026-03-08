@@ -51,6 +51,9 @@ class TM2TMetrics(Metric):
         self.add_state("phoenix_count_seq",
                        default=torch.tensor(0),
                        dist_reduce_fx="sum")
+        self.add_state("thai_count_seq",
+                       default=torch.tensor(0),
+                       dist_reduce_fx="sum")
 
         self.add_state("how2sign_DTW_MPJPE_PA_lhand",
                        default=torch.tensor([0.0]),
@@ -82,9 +85,20 @@ class TM2TMetrics(Metric):
                        default=torch.tensor([0.0]),
                        dist_reduce_fx="sum")
 
+        self.add_state("thai_DTW_MPJPE_PA_lhand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_DTW_MPJPE_PA_rhand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_DTW_MPJPE_PA_body",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+
         self.MR_metrics = ["how2sign_DTW_MPJPE_PA_lhand", "how2sign_DTW_MPJPE_PA_rhand", "how2sign_DTW_MPJPE_PA_body", 
                            "csl_DTW_MPJPE_PA_lhand", "csl_DTW_MPJPE_PA_rhand", "csl_DTW_MPJPE_PA_body",
-                           "phoenix_DTW_MPJPE_PA_lhand", "phoenix_DTW_MPJPE_PA_rhand", "phoenix_DTW_MPJPE_PA_body"]
+                           "phoenix_DTW_MPJPE_PA_lhand", "phoenix_DTW_MPJPE_PA_rhand", "phoenix_DTW_MPJPE_PA_body",
+                           "thai_DTW_MPJPE_PA_lhand", "thai_DTW_MPJPE_PA_rhand", "thai_DTW_MPJPE_PA_body"]
 
         # All metric
         self.metrics = self.MR_metrics
