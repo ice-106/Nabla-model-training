@@ -104,6 +104,7 @@ class BaseModel(LightningModule):
         #print before sync
         if 'lm' in self.hparams.stage:
             name2scores = getattr(self.metrics.TM2TMetrics, 'name2scores')
+            # [MODIFIED]: Report Thai validation score
             metrics = ["how2sign_DTW_MPJPE_PA_lhand", "how2sign_DTW_MPJPE_PA_rhand", "how2sign_DTW_MPJPE_PA_body",
                            "csl_DTW_MPJPE_PA_lhand", "csl_DTW_MPJPE_PA_rhand", "csl_DTW_MPJPE_PA_body",
                            "phoenix_DTW_MPJPE_PA_lhand", "phoenix_DTW_MPJPE_PA_rhand", "phoenix_DTW_MPJPE_PA_body",

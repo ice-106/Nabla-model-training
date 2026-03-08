@@ -1,4 +1,4 @@
-NAME: DETO-3-Dataset-Cont-50ep+77ep-DTW-PA-JPE # Experiment names
+NAME: DETO-3-Dataset-One-Go-last-ckpt # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
