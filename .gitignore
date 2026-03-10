@@ -33,3 +33,6 @@ slurm-*
 **/.DS_Store
 CLAUDE.md
 agentScripts/
+.gemini/
+.claude/
+AGENTS.md
