@@ -45,8 +45,30 @@ import argparse
 from tqdm import tqdm
 from pathlib import Path
 
-from mGPT.utils.human_models import smpl_x, get_coord
+import copy
+from mGPT.utils.human_models import smpl_x
 from mGPT.utils.render_utils import render_video_from_meshes
+
+# Local device-aware version of get_coord from human_models.py
+# The upstream get_coord() hardcodes .cuda(), which fails on CPU-only machines.
+_smplx_layer_cache = {}
+
+def get_coord_device(root_pose, body_pose, lhand_pose, rhand_pose, jaw_pose, shape, expr, device):
+    """Run SMPL-X forward pass on the given device (cpu or cuda)."""
+    if device not in _smplx_layer_cache:
+        _smplx_layer_cache[device] = copy.deepcopy(smpl_x.layer['neutral']).to(device)
+    smplx_layer = _smplx_layer_cache[device]
+
+    batch_size = root_pose.shape[0]
+    zero_pose = torch.zeros((batch_size, 3), dtype=torch.float32, device=root_pose.device)
+
+    output = smplx_layer(
+        betas=shape, body_pose=body_pose, global_orient=root_pose,
+        right_hand_pose=rhand_pose, left_hand_pose=lhand_pose,
+        jaw_pose=jaw_pose, leye_pose=zero_pose, reye_pose=zero_pose,
+        expression=expr,
+    )
+    return output.vertices, output.joints
 
 
 def load_frames_from_folder(folder_path):
@@ -141,7 +163,7 @@ def frames_to_vertices(frames, device, batch_size=32):
 
     for start in range(0, T, batch_size):
         end = min(start + batch_size, T)
-        verts, _ = get_coord(
+        verts, _ = get_coord_device(
             root_pose=root_pose[start:end],
             body_pose=body_pose[start:end],
             lhand_pose=lhand_pose[start:end],
@@ -149,6 +171,7 @@ def frames_to_vertices(frames, device, batch_size=32):
             jaw_pose=jaw_pose[start:end],
             shape=shape[start:end],
             expr=expr[start:end],
+            device=device,
         )
         all_vertices.append(verts.cpu().numpy())
 
