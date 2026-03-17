@@ -35,6 +35,11 @@ Output:
 """
 
 import os
+import sys
+
+# Add project root to sys.path so mGPT can be found when running from scripts/
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 # Set headless rendering before any OpenGL import
 os.environ["PYOPENGL_PLATFORM"] = "egl"
 
