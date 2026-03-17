@@ -29,3 +29,9 @@ t2m.tar.gz
 # Below just for repositioning for code to be able to run. No need to add to git
 get_motion_code.py
 slurm-*
+.DS_Store
+**/.DS_Store
+.claude/
+.gemini/
+agentScripts/
+AGENTS.md
