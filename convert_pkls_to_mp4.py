@@ -6,14 +6,33 @@ import torch
 import numpy as np
 import argparse
 from tqdm import tqdm
-from mGPT.utils.human_models import smpl_x, get_coord
+from mGPT.utils.human_models import smpl_x
 from mGPT.utils.rotation_conversions import rotation_6d_to_matrix, matrix_to_axis_angle
-from mGPT.utils.render_utils import render_video_from_meshes
 from mGPT.utils.render_utils import render_video_from_meshes
 import csv
 import random
+import copy
 
-def feats2joints(features, mean, std, rot6d=False):
+_smplx_layer_cache = {}
+
+def get_coord_device(root_pose, body_pose, lhand_pose, rhand_pose, jaw_pose, shape, expr, device):
+    """Run SMPL-X forward pass on the given device (cpu or cuda)."""
+    if device not in _smplx_layer_cache:
+        _smplx_layer_cache[device] = copy.deepcopy(smpl_x.layer['neutral']).to(device)
+    smplx_layer = _smplx_layer_cache[device]
+
+    batch_size = root_pose.shape[0]
+    zero_pose = torch.zeros((batch_size, 3), dtype=torch.float32, device=root_pose.device)
+
+    output = smplx_layer(
+        betas=shape, body_pose=body_pose, global_orient=root_pose,
+        right_hand_pose=rhand_pose, left_hand_pose=lhand_pose,
+        jaw_pose=jaw_pose, leye_pose=zero_pose, reye_pose=zero_pose,
+        expression=expr,
+    )
+    return output.vertices, output.joints
+
+def feats2joints(features, mean, std, device, rot6d=False):
     #smpl2joints and drop lowerbody
     # Check dimensions
     # If features dim is 123, it might match mean/std, but be missing expr (10) for full SMPL-X
@@ -54,10 +73,10 @@ def feats2joints(features, mean, std, rot6d=False):
             features = torch.cat([features, expr], dim=-1)
 
     features = torch.cat([zero_pose, features], dim=-1).view(B*T, -1)  #133+36=169
-    vertices, joints = get_coord(root_pose=features[..., 0:3], body_pose=features[..., 3:66], 
+    vertices, joints = get_coord_device(root_pose=features[..., 0:3], body_pose=features[..., 3:66], 
                                     lhand_pose=features[..., 66:111], rhand_pose=features[..., 111:156], 
                                     jaw_pose=features[..., 156:159], shape=shape_param, 
-                                    expr=features[..., 159:169])
+                                    expr=features[..., 159:169], device=device)
     return vertices, joints
 
 def main():
@@ -168,7 +187,7 @@ def main():
                 # tqdm.write just to avoid messing up progress bar
                 tqdm.write(f"Warning: Feature dim {features.shape[-1]} != Mean dim {h2s_csl_mean.shape[-1]}. Function feats2joints will attempt to handle it.")
 
-            vertices, _ = feats2joints(features, h2s_csl_mean, h2s_csl_std, rot6d=args.rot6d)
+            vertices, _ = feats2joints(features, h2s_csl_mean, h2s_csl_std, device=device, rot6d=args.rot6d)
             if vertices.shape[0] == 0:
                  print(f"Error: No vertices returned for {pkl_file}")
                  continue
