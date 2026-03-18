@@ -41,20 +41,22 @@ def main():
     parser = argparse.ArgumentParser(description="Convert Thai dataset .npz to SOKE .pkl format")
     parser.add_argument('--input', '-i', type=str, required=True, help="Input directory containing video folders with smplx subfolders")
     parser.add_argument('--output', '-o', type=str, required=True, help="Output directory for poses")
+    parser.add_argument('--smplx-folder', type=str, default='smplx', help="Name of the smplx subfolder (default: 'smplx')")
     args = parser.parse_args()
 
     source_dir = args.input
     target_dir = args.output
+    smplx_folder_name = args.smplx_folder
 
     print(f"Scanning {source_dir}...")
     print(f"Outputting to {target_dir}")
     
     # Walk through source_dir
     for root, dirs, files in os.walk(source_dir):
-        if 'smplx' in dirs:
+        if smplx_folder_name in dirs:
             # This 'root' is likely the video folder (e.g., trimmed_..._C0003)
             video_name = os.path.basename(root)
-            smplx_dir = os.path.join(root, 'smplx')
+            smplx_dir = os.path.join(root, smplx_folder_name)
             
             # Create target directory
             # If the user provides valid output dir, we usually append 'poses' inside it or use it as the poses root.
