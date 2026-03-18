@@ -239,7 +239,25 @@ def main():
         default="cuda" if torch.cuda.is_available() else "cpu",
         help="Device to use (default: cuda if available, else cpu)."
     )
+    parser.add_argument(
+        "--cam_trans", type=str,
+        default="-2.6177440e-03,0.1,-13",
+        help="Camera translation separated by commas (default: -2.6177440e-03,0.1,-13)."
+    )
+    parser.add_argument(
+        "--mesh_rotation", type=str, default="None",
+        choices=["None", "180X", "180Y", "180Z"],
+        help="Apply an extra 180 degree rotation to the mesh to fix upside down renders (e.g. 180X)."
+    )
     args = parser.parse_args()
+
+    # Parse camera translation
+    try:
+        cam_trans_list = [float(x.strip()) for x in args.cam_trans.split(",")]
+        cam_trans = np.array(cam_trans_list, dtype=np.float32)
+    except Exception as e:
+        print(f"Error parsing --cam_trans: {e}")
+        return
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -285,12 +303,25 @@ def main():
                 tqdm.write(f"  Error: vertex count too low ({vertices.shape[1]}). Skipping.")
                 continue
 
-            # 3. Render video
+            # 3. Apply optional rotation
+            if args.mesh_rotation != "None":
+                import trimesh
+                angle = np.radians(180)
+                axis = [1, 0, 0] if args.mesh_rotation == "180X" else (
+                       [0, 1, 0] if args.mesh_rotation == "180Y" else [0, 0, 1])
+                rot_matrix = trimesh.transformations.rotation_matrix(angle, axis)[:3, :3]
+                # Apply rotation to all vertices
+                # vertices shape is (T, V, 3)
+                # einsum to multiply rotating each (V, 3) by (3, 3) -> (V, 3)
+                vertices = np.einsum('ij,tvj->tvi', rot_matrix, vertices)
+
+            # 4. Render video
             render_video_from_meshes(
                 verts_list=vertices,
                 faces=faces,
                 save_path=video_out_path,
                 fps=args.fps,
+                cam_trans=cam_trans,
             )
             tqdm.write(f"  Saved: {video_out_path}")
 
