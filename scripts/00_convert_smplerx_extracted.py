@@ -1,3 +1,49 @@
+"""
+Convert SMPLer-X extracted motion .npz files into SOKE-compatible .pkl format.
+
+This script traverses a source directory looking for subfolders containing
+per-frame SMPLer-X .npz files (typically from an extraction pipeline). It reads 
+the raw arrays, maps them to the expected `smplx_*` keys, flattens them to 1D,
+and saves them as sequential .pkl files (e.g. 000000.pkl, 000001.pkl, ...).
+
+The expected keys mapped from .npz to .pkl are:
+  - global_orient   -> smplx_root_pose
+  - body_pose       -> smplx_body_pose
+  - left_hand_pose  -> smplx_lhand_pose
+  - right_hand_pose -> smplx_rhand_pose
+  - jaw_pose        -> smplx_jaw_pose
+  - betas           -> smplx_shape
+  - expression      -> smplx_expr
+
+Usage:
+  conda activate pytorchmacos
+  python scripts/00_convert_smplerx_extracted.py \
+      --input /Users/vikimark/Downloads/SMPLerX_RawData \
+      --output /Users/vikimark/Downloads/SMPLerX_Poses \
+      --smplx-folder smplx
+
+Example structure:
+  Input:
+    input_dir/
+      video_001/
+        smplx/
+          frame_0.npz
+          frame_1.npz
+          ...
+      video_002/
+        smplx/
+          ...
+          
+  Output:
+    output_dir/
+      video_001/
+        000000.pkl
+        000001.pkl
+        ...
+      video_002/
+        ...
+"""
+
 import os
 import numpy as np
 import pickle
@@ -38,7 +84,7 @@ def convert_frame(npz_path, output_path):
         print(f"Error converting {npz_path}: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert Thai dataset .npz to SOKE .pkl format")
+    parser = argparse.ArgumentParser(description="Convert SMPLer-X extracted motion .npz to SOKE .pkl format")
     parser.add_argument('--input', '-i', type=str, required=True, help="Input directory containing video folders with smplx subfolders")
     parser.add_argument('--output', '-o', type=str, required=True, help="Output directory for poses")
     parser.add_argument('--smplx-folder', type=str, default='smplx', help="Name of the smplx subfolder (default: 'smplx')")
