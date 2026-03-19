@@ -11,7 +11,7 @@ from rich.progress import track
 from os.path import join as pjoin
 from .dataset_m import MotionDataset
 from .dataset_t2m import Text2MotionDataset
-from .load_data import load_h2s_sample, load_csl_sample, load_phoenix_sample, load_iso_sample
+from .load_data import load_h2s_sample, load_csl_sample, load_phoenix_sample, load_iso_sample, load_thai_sample # [MODIFIED]: Import new Thai loading function
 # Removed module-level random.seed(0) to prevent interference with per-dataset seeding
 # import random; random.seed(0)
 import json
@@ -44,6 +44,7 @@ class H2SMotionDatasetVQ(data.Dataset):
         self.root_dir = data_root
         self.csl_root = kwargs.get('csl_root', None)
         self.phoenix_root = kwargs.get('phoenix_root', None)
+        self.thai_root = kwargs.get('thai_root', None) # [MODIFIED]: Add Thai root path
         
         self.debug = debug # [MODIFIED] to add debug sampling
         self.num_sample = kwargs.get('num_sample', None) # [MODIFIED] to add debug sampling
@@ -57,7 +58,7 @@ class H2SMotionDatasetVQ(data.Dataset):
         assert max_motion_length % unit_length == 0 and min_motion_length % unit_length == 0
 
         self.all_data = []
-        self.h2s_len = self.csl_len = self.phoenix_len = 0
+        self.h2s_len = self.csl_len = self.phoenix_len = self.thai_len = 0 # [MODIFIED]: Initialize Thai counter
 
         if 'how2sign' in dataset_name:
             self.data_dir = os.path.join(data_root, split, 'poses')
@@ -147,7 +148,34 @@ class H2SMotionDatasetVQ(data.Dataset):
                 self.all_data.append(ann)
             self.phoenix_len += len(self.ann)
 
-        print(f'Data loading done. All: {len(self.all_data)}, How2Sign: {self.h2s_len}, CSL: {self.csl_len}, Phoenix: {self.phoenix_len}')
+        if 'thai' in dataset_name: # [MODIFIED]: Add logic to load Thai dataset
+            if split == 'train':
+                ann_path = os.path.join(self.thai_root, 'val_vid.train')
+            else:
+                ann_path = os.path.join(self.thai_root, f'val_vid.{split}')
+            with gzip.open(ann_path, 'rb') as f:
+                self.ann = pickle.load(f) #[:800]
+
+            if self.num_sample is not None and self.num_sample > 0 and split=='train':
+                import random
+                random.seed(self.seed)
+                # Sort annotation list by name
+                self.ann.sort(key=lambda x: x['name'])
+                k = min(self.num_sample, len(self.ann))
+                self.ann = random.sample(self.ann, k)
+                print(f'Subsampling: Loaded {len(self.ann)} samples from Thai ({split}) with seed {self.seed}')
+            elif self.debug and split == 'train':
+                self.ann = self.ann[:1]
+                print(f'DEBUG MODE: Loading only 1 sample from Thai ({split})')
+
+            print(f'{split}--loading thai annotations...', len(self.ann))
+            for idx in tqdm(range(len(self.ann))):
+                ann = deepcopy(self.ann[idx])
+                ann['src'] = 'thai'
+                self.all_data.append(ann)
+            self.thai_len += len(self.ann)
+
+        print(f'Data loading done. All: {len(self.all_data)}, How2Sign: {self.h2s_len}, CSL: {self.csl_len}, Phoenix: {self.phoenix_len}, Thai: {self.thai_len}')
         
 
     def __len__(self):
@@ -166,6 +194,9 @@ class H2SMotionDatasetVQ(data.Dataset):
             clip_poses, text, name, _ = load_csl_sample(sample, self.csl_root)
         elif src == 'phoenix':
             clip_poses, text, name, _ = load_phoenix_sample(sample, self.phoenix_root)
+        elif src == 'thai':
+            # [MODIFIED]: Call specific loading function for Thai
+            clip_poses, text, name, _ = load_thai_sample(sample, self.thai_root)
         elif src == 'asl_iso':
             clip_poses, text, name, _ = load_iso_sample(sample, self.root_dir, dataset='asl_iso')
             src = 'how2sign'

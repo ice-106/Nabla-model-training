@@ -31,7 +31,8 @@ get_motion_code.py
 slurm-*
 .DS_Store
 **/.DS_Store
-.claude/
-.gemini/
+CLAUDE.md
 agentScripts/
+.gemini/
+.claude/
 AGENTS.md

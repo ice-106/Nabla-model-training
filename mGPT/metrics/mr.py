@@ -149,12 +149,52 @@ class MRMetrics(Metric):
         self.add_state("phoenix_MPJPE_hand",
                        default=torch.tensor([0.0]),
                        dist_reduce_fx="sum")
+
+        # [MODIFIED] Thai
+        self.add_state("thai_count", default=torch.tensor(0), dist_reduce_fx="sum")
+        self.add_state("thai_count_seq",
+                       default=torch.tensor(0),
+                       dist_reduce_fx="sum")
+
+        self.add_state("thai_MPVPE_PA_all",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPVPE_PA_hand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPVPE_PA_face",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+
+        self.add_state("thai_MPVPE_all",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPVPE_hand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPVPE_face",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        
+        self.add_state("thai_MPJPE_PA_body",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPJPE_PA_hand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+
+        self.add_state("thai_MPJPE_body",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
+        self.add_state("thai_MPJPE_hand",
+                       default=torch.tensor([0.0]),
+                       dist_reduce_fx="sum")
         
         m = ["MPVPE_PA_all", "MPVPE_PA_hand", "MPVPE_PA_face",
             "MPJPE_PA_body", "MPJPE_PA_hand", "MPJPE_body", "MPJPE_hand",
             "MPVPE_all", "MPVPE_hand", "MPVPE_face"]
         self.MR_metrics = []
-        for d in ['how2sign', 'csl', 'phoenix']:
+        for d in ['how2sign', 'csl', 'phoenix', 'thai']: #[MODIFIED] Thai
             for m_ in m:
                 self.MR_metrics.append(f'{d}_{m_}')
 
