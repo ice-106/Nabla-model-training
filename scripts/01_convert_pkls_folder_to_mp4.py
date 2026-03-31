@@ -16,11 +16,10 @@ Usage:
   python scripts/01_convert_pkls_folder_to_mp4.py \
       --input_dir /Users/vikimark/Downloads/Thai/Poses \
       --output_dir /tmp/thai_videos \
-      --fps 20
-      --mesh_rotation 180X      # Flips the mesh upside down if rendered inverted
+      --fps 20 \
+      --mesh_rotation 180X      # Flips the mesh upside down if rendered inverted \ 
+      --cam_trans "0.0,-0.5,-14" # X,Y,Z translation. Decrease Z to zoom out, increase Y to move camera up.
 
-Optional arguments for fixing camera framing:
-  --cam_trans "0.0,0.5,-16" # X,Y,Z translation. Decrease Z to zoom out, increase Y to move camera up.
 
 Example structure:
   input_dir/

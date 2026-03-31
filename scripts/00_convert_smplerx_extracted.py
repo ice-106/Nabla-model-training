@@ -87,7 +87,7 @@ def main():
     parser = argparse.ArgumentParser(description="Convert SMPLer-X extracted motion .npz to SOKE .pkl format")
     parser.add_argument('--input', '-i', type=str, required=True, help="Input directory containing video folders with smplx subfolders")
     parser.add_argument('--output', '-o', type=str, required=True, help="Output directory for poses")
-    parser.add_argument('--smplx-folder', type=str, default='smplx', help="Name of the smplx subfolder (default: 'smplx')")
+    parser.add_argument('--smplx-folder', type=str, default='smplx_smoothed', help="Name of the smplx subfolder (default: 'smplx')")
     args = parser.parse_args()
 
     source_dir = args.input
