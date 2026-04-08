@@ -207,6 +207,11 @@ class H2SMotionDatasetVQ(data.Dataset):
             clip_poses, text, name, _ = load_iso_sample(sample, self.phoenix_root, dataset='phoenix_iso')
             src = 'phoenix'
 
+        if clip_poses is None:
+            import warnings
+            warnings.warn(f"Skipping sample: src={src}, name={sample['name']} (missing or incomplete pose folder)")
+            return self.__getitem__((idx + 1) % len(self.all_data))
+
         clip_poses = (clip_poses - self.mean.numpy())/(self.std.numpy()+1e-10)
         m_length = clip_poses.shape[0]
         if m_length < self.min_motion_length:
