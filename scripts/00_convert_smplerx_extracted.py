@@ -87,7 +87,7 @@ def main():
     parser = argparse.ArgumentParser(description="Convert SMPLer-X extracted motion .npz to SOKE .pkl format")
     parser.add_argument('--input', '-i', type=str, required=True, help="Input directory containing video folders with smplx subfolders")
     parser.add_argument('--output', '-o', type=str, required=True, help="Output directory for poses")
-    parser.add_argument('--smplx-folder', type=str, default='smplx_smoothed', help="Name of the smplx subfolder (default: 'smplx')")
+    parser.add_argument('--smplx-folder', type=str, default='smplx', help="Name of the smplx subfolder (default: 'smplx')")
     args = parser.parse_args()
 
     source_dir = args.input
@@ -116,15 +116,15 @@ def main():
             npz_files = sorted(glob.glob(os.path.join(smplx_dir, '*.npz')))
             
             if not npz_files:
-                continue
-                
+              continue
+              
             print(f"Processing {video_name} ({len(npz_files)} frames)...")
             
             # Re-index from 0 based on sorted filename order
             for i, npz_file in enumerate(npz_files):
-                target_name = f"{i:06d}.pkl"
-                output_path = os.path.join(target_pose_dir, target_name)
-                convert_frame(npz_file, output_path)
+              target_name = os.path.basename(npz_file).replace('.npz', '.pkl')
+              output_path = os.path.join(target_pose_dir, target_name)
+              convert_frame(npz_file, output_path)
 
     print(f"\nConversion complete.")
 

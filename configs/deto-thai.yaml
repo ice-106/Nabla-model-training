@@ -1,4 +1,4 @@
-NAME: DETO-Thai-Dataset # Experiment names
+NAME: DETO-Thai-Dataset-Smoothed-SMPLer-X-WiLOR # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
@@ -50,7 +50,7 @@ DATASET:
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
-    THAI_ROOT: ../data/Thai
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
     MEAN_PATH: ../data/CSL-Daily/mean.pt
     STD_PATH: ../data/CSL-Daily/std.pt
     MAX_MOTION_LEN: 400
