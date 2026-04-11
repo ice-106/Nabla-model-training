@@ -154,28 +154,36 @@ class SMPLX(object):
                                         self.pos_joints_name.index('R_Ring_1') - len(self.pos_joint_part['body']) - len(self.pos_joint_part['lhand']),
                                         self.pos_joints_name.index('R_Pinky_1') - len(self.pos_joint_part['body']) - len(self.pos_joint_part['lhand'])]
     
+    @staticmethod
+    def _onehot_row(n, idx):
+        """Return a (1, n) one-hot row vector — avoids allocating a full n×n identity matrix."""
+        row = np.zeros((1, n), dtype=np.float64)
+        row[0, idx] = 1.0
+        return row
+
     def make_hand_regressor(self):
         regressor = self.layer['neutral'].J_regressor.numpy()
+        n = self.vertex_num
         lhand_regressor = np.concatenate((regressor[[20,37,38,39],:],
-                                            np.eye(self.vertex_num)[5361,None],
+                                            self._onehot_row(n, 5361),
                                                 regressor[[25,26,27],:],
-                                                np.eye(self.vertex_num)[4933,None],
+                                                self._onehot_row(n, 4933),
                                                 regressor[[28,29,30],:],
-                                                np.eye(self.vertex_num)[5058,None],
+                                                self._onehot_row(n, 5058),
                                                 regressor[[34,35,36],:],
-                                                np.eye(self.vertex_num)[5169,None],
+                                                self._onehot_row(n, 5169),
                                                 regressor[[31,32,33],:],
-                                                np.eye(self.vertex_num)[5286,None]))
+                                                self._onehot_row(n, 5286)))
         rhand_regressor = np.concatenate((regressor[[21,52,53,54],:],
-                                            np.eye(self.vertex_num)[8079,None],
+                                            self._onehot_row(n, 8079),
                                                 regressor[[40,41,42],:],
-                                                np.eye(self.vertex_num)[7669,None],
+                                                self._onehot_row(n, 7669),
                                                 regressor[[43,44,45],:],
-                                                np.eye(self.vertex_num)[7794,None],
+                                                self._onehot_row(n, 7794),
                                                 regressor[[49,50,51],:],
-                                                np.eye(self.vertex_num)[7905,None],
+                                                self._onehot_row(n, 7905),
                                                 regressor[[46,47,48],:],
-                                                np.eye(self.vertex_num)[8022,None]))
+                                                self._onehot_row(n, 8022)))
         hand_regressor = {'left': torch.from_numpy(lhand_regressor).float(), 'right': torch.from_numpy(rhand_regressor).float()}
         return hand_regressor
 
