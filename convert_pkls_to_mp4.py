@@ -12,6 +12,7 @@ from mGPT.utils.render_utils import render_video_from_meshes
 import csv
 import random
 import copy
+import gc
 
 _smplx_layer_cache = {}
 
@@ -32,37 +33,25 @@ def get_coord_device(root_pose, body_pose, lhand_pose, rhand_pose, jaw_pose, sha
     )
     return output.vertices, output.joints
 
-def feats2joints(features, mean, std, device, rot6d=False):
+def feats2joints(features, mean, std, device, rot6d=False, chunk_size=32):
     #smpl2joints and drop lowerbody
-    # Check dimensions
-    # If features dim is 123, it might match mean/std, but be missing expr (10) for full SMPL-X
-    # If mean/std are also 123, we perform transform, then we have 123-dim tensor.
-    # Then we add zero_pose (36). Total 159.
-    # get_coord needs expr at 159:169.
-    # So we MUST pad features to 133 (if they are 123) AFTER normalization or BEFORE?
-    # Usually normalization is applied to input features.
-    
-    # Let's handle dimensionality
     B, T, D = features.shape
-    
+
     # Auto-adjust mean/std if they are larger than features (e.g. 133 vs 123)
     if mean.shape[0] > D:
         mean = mean[:D]
         std = std[:D]
-    
+
     features = features * std + mean
-    
-    # Now features has size D (e.g. 123).
-    # If D == 123, we need to pad 10 dims for expression?
+
+    # If D == 123, pad 10 dims for expression
     if features.shape[-1] == 123:
-        # Pad with zeros for expression
         features = torch.cat([features, torch.zeros(B, T, 10).to(features)], dim=-1)
-    
+
     zero_pose = torch.zeros(*features.shape[:-1], 36).to(features)
-    shape_param = torch.tensor([[[-0.07284723, 0.1795129, -0.27608207, 0.135155, 0.10748172, 
+    shape_param_base = torch.tensor([[[-0.07284723, 0.1795129, -0.27608207, 0.135155, 0.10748172,
                             0.16037364, -0.01616933, -0.03450319, 0.01369138, 0.01108842]]]).to(features)
     B, T = features.shape[:2]
-    shape_param = shape_param.repeat(B, T, 1).view(B*T, -1)
 
     if rot6d:
             # 6d rotation to axis angle
@@ -73,10 +62,29 @@ def feats2joints(features, mean, std, device, rot6d=False):
             features = torch.cat([features, expr], dim=-1)
 
     features = torch.cat([zero_pose, features], dim=-1).view(B*T, -1)  #133+36=169
-    vertices, joints = get_coord_device(root_pose=features[..., 0:3], body_pose=features[..., 3:66], 
-                                    lhand_pose=features[..., 66:111], rhand_pose=features[..., 111:156], 
-                                    jaw_pose=features[..., 156:159], shape=shape_param, 
-                                    expr=features[..., 159:169], device=device)
+    shape_param = shape_param_base.repeat(B, T, 1).view(B*T, -1)
+
+    # Process in chunks to reduce peak memory usage (critical for CPU)
+    total_frames = features.shape[0]
+    all_vertices = []
+    all_joints = []
+
+    with torch.no_grad():
+        for start in range(0, total_frames, chunk_size):
+            end = min(start + chunk_size, total_frames)
+            chunk_feats = features[start:end]
+            chunk_shape = shape_param[start:end]
+
+            v, j = get_coord_device(
+                root_pose=chunk_feats[..., 0:3], body_pose=chunk_feats[..., 3:66],
+                lhand_pose=chunk_feats[..., 66:111], rhand_pose=chunk_feats[..., 111:156],
+                jaw_pose=chunk_feats[..., 156:159], shape=chunk_shape,
+                expr=chunk_feats[..., 159:169], device=device)
+            all_vertices.append(v.cpu())
+            all_joints.append(j.cpu())
+
+    vertices = torch.cat(all_vertices, dim=0)
+    joints = torch.cat(all_joints, dim=0)
     return vertices, joints
 
 def main():
@@ -188,21 +196,12 @@ def main():
                 tqdm.write(f"Warning: Feature dim {features.shape[-1]} != Mean dim {h2s_csl_mean.shape[-1]}. Function feats2joints will attempt to handle it.")
 
             vertices, _ = feats2joints(features, h2s_csl_mean, h2s_csl_std, device=device, rot6d=args.rot6d)
+            del features
             if vertices.shape[0] == 0:
                  print(f"Error: No vertices returned for {pkl_file}")
                  continue
-            
-            # vertices back to cpu numpy [T, V, 3] and take first batch item (since batch size is 1)
-            # feats2joints returns [B*T, V, 3] ?
-            # Let's check feats2joints return:
-            # features = torch.cat(...).view(B*T, -1)
-            # vertices, joints = get_coord(...) -> vertices shape is [B*T, 10475, 3] likely if B*T is treated as batch in get_coord
-            
-            # The input 'features' had shape (1, T, D). B=1
-            # inside feats2joints: features becomes (B*T, -1)
-            # So output vertices is (B*T, V, 3) = (T, V, 3) 
-            
-            vertices = vertices.cpu().numpy() 
+
+            vertices = vertices.numpy()
             
             # Filter frames with low vertex count? (copied from original logic)
             # The original logic was:
@@ -231,6 +230,9 @@ def main():
             print(f"Failed to process {pkl_file}: {e}")
             import traceback
             traceback.print_exc()
+        finally:
+            # Free memory between files (critical for CPU nodes)
+            gc.collect()
 
     # Write CSV
     csv_path = os.path.join(output_dir, "metadata.csv")
