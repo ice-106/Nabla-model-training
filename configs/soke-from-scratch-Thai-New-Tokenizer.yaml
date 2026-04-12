@@ -1,0 +1,105 @@
+# Checklist
+# 1. Change Name
+# 2. Disable Debug mode (Two places)
+# 3. Verify dataset name 
+# 4. Verify RESUME whether you want to continue or not
+# 5. Verify Wandb Name
+# 6. Set Epcoh to original (150)
+# 7. Check the type of metric (PA, Non-PA)
+
+NAME: SOKE-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
+NUM_NODES: 1 # Number of GPU nodes for distributed training
+DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
+DEBUG: True #[MODIFIED] Add debug mode
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
+  #---------------------------------
+  NUM_WORKERS: 16 # Number of workers
+  BATCH_SIZE: 32 # Size of batches
+  END_EPOCH: 150 # [MODIFIED] End epoch, orginally 150
+  RESUME: '' # Resume training from this path, folder to log and checkpoints
+  # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
+  PRETRAINED: '' # Preatrained model path, path to check point
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Train-ALL-Thai-Dataset-Smoothed-SMPLer-X-WiLOR/checkpoints/last.ckpt' # Vae model path
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4 # Originally, 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+  
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
+      eta_min: 1e-6
+
+# Evaluating Configuration
+EVAL:
+  BATCH_SIZE: 8 # Evaluating Batch size
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer/checkpoints/last.ckpt"
+  SPLIT: train # [MODIFIED] Originally, this is test
+  BATCH_SIZE: 8 # training Batch size
+  REPLICATION_TIMES: 1 # Number of times to replicate the test
+  SAVE_PREDICTIONS: True # set to save prediction
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: thai
+    DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
+    NUM_SAMPLE: 1  #[MODIFIED] Set to 'None' to do full training.
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_Thai_From_Scratch
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 5
+  WANDB:
+    params:
+      project: SLG-Lanta-Thai-From-Scratch
+      # id: "ygajm5v9"
+      # resume: "must"
+      

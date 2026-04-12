@@ -1,4 +1,4 @@
-NAME: DETO-Train-ALL-Thai-Dataset-Smoothed-SMPLer-X-WiLOR # Experiment names
+NAME: DETO-Test-Finetune-Thai-Dataset-Smoothed-SMPLer-X-WiLOR # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
@@ -35,7 +35,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: ./experiments/mgpt/DETO-Train-ALL-Thai-Dataset-Smoothed-SMPLer-X-WiLOR/checkpoints/last.ckpt
+  CHECKPOINTS: ./experiments/mgpt/DETO-Test-Finetune-Thai-Dataset-Smoothed-SMPLer-X-WiLOR/checkpoints/last.ckpt
   SPLIT: test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
