@@ -42,7 +42,11 @@ TRAIN:
 
 # Evaluating Configuration
 EVAL:
+<<<<<<< HEAD
   BATCH_SIZE: 1 # Evaluating Batch size
+=======
+  BATCH_SIZE: 1 # [MODIFIED] Reduced from 8 to avoid OOM during SMPLX validation
+>>>>>>> 80f443369da777d79f982fd8aa623ff46c5e504f
   SPLIT: val
 
 TEST:
@@ -98,7 +102,11 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
+<<<<<<< HEAD
   VAL_EVERY_STEPS: 100 # [MODIFIED] Validate every 10 epochs to reduce overhead
+=======
+  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
+>>>>>>> 80f443369da777d79f982fd8aa623ff46c5e504f
   WANDB:
     params:
       project: SLG-Lanta-Thai-From-Scratch

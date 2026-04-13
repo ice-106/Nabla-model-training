@@ -7,19 +7,19 @@
 # 6. Set Epcoh to original (150)
 # 7. Check the type of metric (PA, Non-PA)
 
-NAME: SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset # Experiment names: Set new name to create new experiment!
-ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
+NAME: SOKE-v3-Thai-Full-Train-1GPU-BS4 # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
-DEBUG: True #[MODIFIED] Add debug mode
+DEVICE: [0] # [MODIFIED] 1 GPU - 119 samples / batch_size 4 = ~30 steps/epoch
+DEBUG: false # [MODIFIED] Disabled for full training
 
 TRAIN:
   #---------------------------------
   STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
   #---------------------------------
   NUM_WORKERS: 16 # Number of workers
-  BATCH_SIZE: 32 # Size of batches
-  END_EPOCH: 150 # [MODIFIED] End epoch, orginally 150
+  BATCH_SIZE: 4 # [MODIFIED] Small batch -> ~30 steps/epoch with 119 samples
+  END_EPOCH: 500 # [MODIFIED] 500 epochs x ~30 steps = ~15,000 gradient updates
   RESUME: '' # Resume training from this path, folder to log and checkpoints
   # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
   PRETRAINED: '' # Preatrained model path, path to check point
@@ -36,15 +36,15 @@ TRAIN:
     target: CosineAnnealingLR
     params:
       T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
-      eta_min: 1e-6
+      eta_min: 1e-5 # [MODIFIED] Higher minimum LR to avoid stalling late in training
 
 # Evaluating Configuration
 EVAL:
-  BATCH_SIZE: 8 # Evaluating Batch size
+  BATCH_SIZE: 1 # [MODIFIED] Reduced to avoid OOM during SMPLX validation
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-v3-Thai-Full-Train-1GPU-BS4/checkpoints/last.ckpt"
   SPLIT: train # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -54,8 +54,8 @@ DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
     DATASET_NAME: thai
-    DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
-    NUM_SAMPLE: 1  #[MODIFIED] Set to 'None' to do full training.
+    DEBUG: false # [MODIFIED] Full training, not debug
+    NUM_SAMPLE:   # [MODIFIED] Use all 119 samples
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -96,10 +96,9 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 5
+  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
   WANDB:
     params:
       project: SLG-Lanta-Thai-From-Scratch
       # id: "ygajm5v9"
       # resume: "must"
-      
