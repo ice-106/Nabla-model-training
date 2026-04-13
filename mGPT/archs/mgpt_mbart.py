@@ -118,9 +118,9 @@ class Mbart_Based_MLM(nn.Module):
         # Add motion tokens
         self.tokenizer = MBartTokenizer.from_pretrained(model_path, legacy=True)
         if model_type == 'mbart_multi_part':
-            new_lang_token = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand', 'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand', 'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand', 'th_THS', 'th_THS_lhand', 'th_THS_rhand'] #[MODIFIED]: Add thai token
+            new_lang_token = ['th_TH', 'en_ASL', 'en_ASL_lhand', 'en_ASL_rhand', 'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand', 'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand', 'th_THS', 'th_THS_lhand', 'th_THS_rhand'] #[MODIFIED]: Add th_TH (not in mBart-cc25) + thai sign tokens
         else:
-            new_lang_token = ['en_ASL', 'zh_CSL', 'de_DGS', 'th_THS'] #[MODIFIED]: Add thai token
+            new_lang_token = ['th_TH', 'en_ASL', 'zh_CSL', 'de_DGS', 'th_THS'] #[MODIFIED]: Add th_TH (not in mBart-cc25) + thai sign token
         self.tokenizer.add_tokens(new_lang_token, special_tokens=True)
         all_motion_str = [f'<motion_id_{i}>' for i in range(self.m_codebook_size + 3)]
         all_hand_str = [f'<hand_id_{i}>' for i in range(self.hand_codebook_size + 3)] if hand_codebook_size>0 else []
