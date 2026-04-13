@@ -7,7 +7,7 @@
 # 6. Set Epcoh to original (150)
 # 7. Check the type of metric (PA, Non-PA)
 
-NAME: SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset # Experiment names: Set new name to create new experiment!
+NAME: SOKE-Test-CSL-From-Scratch # Experiment names: Set new name to create new experiment!
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
@@ -23,7 +23,7 @@ TRAIN:
   RESUME: '' # Resume training from this path, folder to log and checkpoints
   # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
   PRETRAINED: '' # Preatrained model path, path to check point
-  PRETRAINED_VAE: './experiments/mgpt/DETO-Train-ALL-Thai-Dataset-Smoothed-SMPLer-X-WiLOR/checkpoints/last.ckpt' # Vae model path
+  PRETRAINED_VAE: '../pretrained/tokenizer.ckpt' # Vae model path
 
   OPTIM:
     target: AdamW
@@ -44,7 +44,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Test-CSL-From-Scratch/checkpoints/last.ckpt"
   SPLIT: train # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -53,13 +53,13 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: thai
+    DATASET_NAME: csl
     DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
     NUM_SAMPLE: 1  #[MODIFIED] Set to 'None' to do full training.
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
-    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR # Forgot to changed!
     MEAN_PATH: ../data/CSL-Daily/mean.pt
     STD_PATH: ../data/CSL-Daily/std.pt
     MAX_MOTION_LEN: 400
@@ -69,7 +69,7 @@ DATASET:
     FRAME_RATE: 20.0
     UNIT_LEN: 4
     STD_TEXT: False
-  CODE_PATH: TOKENS_Thai_Smoothed_SMPLer-X-WiLOR_From_Scratch
+  CODE_PATH: TOKENS_h2s_csl_phoenix
 
 METRIC:
   TYPE: ['TM2TMetrics']
@@ -96,10 +96,10 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 5
+  VAL_EVERY_STEPS: 149
   WANDB:
     params:
-      project: SLG-Lanta-Thai-From-Scratch
+      project: SLG-Lanta-CSL-From-Scratch
       # id: "ygajm5v9"
       # resume: "must"
       

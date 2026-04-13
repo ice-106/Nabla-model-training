@@ -7,10 +7,12 @@
 # 6. Set Epcoh to original (150)
 # 7. Check the type of metric (PA, Non-PA)
 
-NAME: SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset # Experiment names: Set new name to create new experiment!
-ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
+# [OVERFIT TEST] 1 GPU, batch_size=1, 1000 epochs, constant LR to test single-sample memorization.
+
+NAME: SOKE-v2-Overfit-Test-Thai-1GPU-BS1 # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optioncal: "cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto"
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
+DEVICE: [0] # [MODIFIED] 1 GPU only — avoids splitting 1 sample across 4 GPUs
 DEBUG: True #[MODIFIED] Add debug mode
 
 TRAIN:
@@ -18,8 +20,8 @@ TRAIN:
   STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
   #---------------------------------
   NUM_WORKERS: 16 # Number of workers
-  BATCH_SIZE: 32 # Size of batches
-  END_EPOCH: 150 # [MODIFIED] End epoch, orginally 150
+  BATCH_SIZE: 1 # [MODIFIED] batch_size=1 for single-sample overfit test
+  END_EPOCH: 1000 # [MODIFIED] 1000 epochs = 1000 gradient updates for 1 sample
   RESUME: '' # Resume training from this path, folder to log and checkpoints
   # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
   PRETRAINED: '' # Preatrained model path, path to check point
@@ -36,15 +38,15 @@ TRAIN:
     target: CosineAnnealingLR
     params:
       T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
-      eta_min: 1e-6
+      eta_min: 2e-4 # [MODIFIED] Same as lr = effectively constant LR (no decay)
 
 # Evaluating Configuration
 EVAL:
-  BATCH_SIZE: 8 # Evaluating Batch size
+  BATCH_SIZE: 1 # Evaluating Batch size
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-v2-Test-Thai-From-Scratch-SMPLer-X-WiLOR-Tokenizer-SMPLer-X-WiLOR-Dataset/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-v2-Overfit-Test-Thai-1GPU-BS1/checkpoints/last.ckpt"
   SPLIT: train # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -96,10 +98,9 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 5
+  VAL_EVERY_STEPS: 100 # [MODIFIED] Validate every 10 epochs to reduce overhead
   WANDB:
     params:
       project: SLG-Lanta-Thai-From-Scratch
       # id: "ygajm5v9"
       # resume: "must"
-      
