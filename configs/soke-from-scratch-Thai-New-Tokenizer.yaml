@@ -45,7 +45,7 @@ EVAL:
 
 TEST:
   CHECKPOINTS: "./experiments/mgpt/SOKE-v3-Thai-Full-Train-4GPU-BS1/checkpoints/last.ckpt"
-  SPLIT: train # [MODIFIED] Originally, this is test
+  SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: True # set to save prediction

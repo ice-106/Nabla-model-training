@@ -13,7 +13,7 @@ NAME: SOKE-v2-Overfit-Test-Thai-1GPU-BS1 # Experiment names: Set new name to cre
 ACCELERATOR: 'gpu' # Devices optioncal: "cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto"
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0] # [MODIFIED] 1 GPU only — avoids splitting 1 sample across 4 GPUs
-DEBUG: True #[MODIFIED] Add debug mode
+DEBUG: False #[MODIFIED] Add debug mode
 
 TRAIN:
   #---------------------------------
@@ -42,16 +42,12 @@ TRAIN:
 
 # Evaluating Configuration
 EVAL:
-<<<<<<< HEAD
-  BATCH_SIZE: 1 # Evaluating Batch size
-=======
   BATCH_SIZE: 1 # [MODIFIED] Reduced from 8 to avoid OOM during SMPLX validation
->>>>>>> 80f443369da777d79f982fd8aa623ff46c5e504f
   SPLIT: val
 
 TEST:
   CHECKPOINTS: "./experiments/mgpt/SOKE-v2-Overfit-Test-Thai-1GPU-BS1/checkpoints/last.ckpt"
-  SPLIT: train # [MODIFIED] Originally, this is test
+  SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
   SAVE_PREDICTIONS: True # set to save prediction
@@ -60,8 +56,8 @@ DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
     DATASET_NAME: thai
-    DEBUG: True #[MODIFIED] Set to True to train only one data point. Set True to do full train.
-    NUM_SAMPLE: 1  #[MODIFIED] Set to 'None' to do full training.
+    DEBUG: False #[MODIFIED] Set to True to train only one data point. Set True to do full train.
+    NUM_SAMPLE:   #[MODIFIED] Set to 'None' to do full training.
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
@@ -102,11 +98,7 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-<<<<<<< HEAD
-  VAL_EVERY_STEPS: 100 # [MODIFIED] Validate every 10 epochs to reduce overhead
-=======
-  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
->>>>>>> 80f443369da777d79f982fd8aa623ff46c5e504f
+  VAL_EVERY_STEPS: 100 # [MODIFIED] Validate every 100 epochs to reduce overhead
   WANDB:
     params:
       project: SLG-Lanta-Thai-From-Scratch
