@@ -1,0 +1,100 @@
+# Option 2 - Phase 1: full 4-dataset AMG (no capping). Builds multilingual sign prior.
+# Followed by soke-08-thai-finetune-phase2.yaml which adapts this checkpoint to Thai.
+#
+# Checklist
+# 1. Change NAME if running a new experiment
+# 2. Disable DEBUG
+# 3. Verify PRETRAINED_VAE points at the Thai-fine-tuned VAE
+# 4. Run get_motion_code before training with full 4-dataset tokens
+
+NAME: SOKE-Full-4-Datasets-Phase1
+ACCELERATOR: 'gpu'
+NUM_NODES: 1
+DEVICE: [0, 1, 2, 3]
+DEBUG: False
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain
+  #---------------------------------
+  NUM_WORKERS: 16
+  BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128. ~31K samples -> ~245 steps/epoch
+  END_EPOCH: 150 # ~37K gradient updates, matches from-scratch 3-dataset scale
+  RESUME: ''
+  PRETRAINED: ''
+  # VAE fine-tuned with Thai from deto-03-finetune-thai-from-3-dataset.yaml
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt'
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}
+      eta_min: 1e-6
+
+EVAL:
+  BATCH_SIZE: 8
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Full-4-Datasets-Phase1/checkpoints/last.ckpt"
+  SPLIT: test
+  BATCH_SIZE: 8
+  REPLICATION_TIMES: 1
+  SAVE_PREDICTIONS: True
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: how2sign_csl_phoenix_thai
+    DEBUG: False
+    NUM_SAMPLE: # full datasets
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_full_4_datasets
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  DTW_ALIGN_MODE: 'jpe'
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 5
+  WANDB:
+    params:
+      project: SLG-SOKE-Full-4-Datasets-Phase1

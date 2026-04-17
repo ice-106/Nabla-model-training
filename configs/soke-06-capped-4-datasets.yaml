@@ -1,0 +1,103 @@
+# Option 1: AMG training on capped 4-dataset mix (H2S/CSL capped at 1077, Phoenix 519, Thai 119)
+# Matches the VAE fine-tune balance so Thai gets meaningful gradient signal.
+#
+# Checklist
+# 1. Change NAME if running a new experiment
+# 2. Disable DEBUG (two places)
+# 3. Verify DATASET_NAME
+# 4. Verify PRETRAINED_VAE points at the Thai-fine-tuned VAE
+# 5. Run get_motion_code before training: produces CODE_PATH tokens for all 4 datasets
+
+NAME: SOKE-Capped-4-Datasets-H2S-CSL-Phoenix-Thai
+ACCELERATOR: 'gpu'
+NUM_NODES: 1
+DEVICE: [0, 1, 2, 3]
+DEBUG: False
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain
+  #---------------------------------
+  NUM_WORKERS: 16
+  BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128 -> ~22 steps/epoch on ~2792 samples
+  END_EPOCH: 150 # ~3300 total gradient updates
+  RESUME: ''
+  PRETRAINED: ''
+  # VAE fine-tuned with Thai from deto-03-finetune-thai-from-3-dataset.yaml
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt'
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}
+      eta_min: 1e-6
+
+EVAL:
+  BATCH_SIZE: 8
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Capped-4-Datasets-H2S-CSL-Phoenix-Thai/checkpoints/last.ckpt"
+  SPLIT: test
+  BATCH_SIZE: 8
+  REPLICATION_TIMES: 1
+  SAVE_PREDICTIONS: True
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: how2sign_csl_phoenix_thai
+    DEBUG: False
+    # Caps each dataset to min(NUM_SAMPLE, size):
+    #   H2S 30000 -> 1077, CSL 1077 -> 1077, Phoenix 519, Thai 119
+    NUM_SAMPLE: 1077
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_capped_4_datasets
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  DTW_ALIGN_MODE: 'jpe'
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 5
+  WANDB:
+    params:
+      project: SLG-SOKE-Capped-4-Datasets

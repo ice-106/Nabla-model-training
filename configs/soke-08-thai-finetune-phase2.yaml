@@ -1,0 +1,102 @@
+# Option 2 - Phase 2: fine-tune the Phase-1 full-4-dataset checkpoint on Thai only.
+# Directly answers the research question: does multilingual pretraining transfer to Thai?
+#
+# Checklist
+# 1. Change NAME if running a new experiment
+# 2. Disable DEBUG
+# 3. Verify PRETRAINED points at the Phase-1 checkpoint
+# 4. Verify PRETRAINED_VAE matches the VAE used in Phase 1
+
+NAME: SOKE-Thai-Finetune-Phase2
+ACCELERATOR: 'gpu'
+NUM_NODES: 1
+DEVICE: [0, 1, 2, 3]
+DEBUG: False
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain
+  #---------------------------------
+  NUM_WORKERS: 16
+  BATCH_SIZE: 4 # Per-GPU; 4 GPUs -> effective 16. 119 Thai -> ~7 steps/epoch
+  END_EPOCH: 100 # ~700 total gradient updates; small LR preserves Phase-1 priors
+  RESUME: ''
+  # LM checkpoint from Phase 1 (full 4-dataset pretraining)
+  PRETRAINED: './experiments/mgpt/SOKE-Full-4-Datasets-Phase1/checkpoints/last.ckpt'
+  # Same Thai-fine-tuned VAE used in Phase 1
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt'
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-5 # 1/10 of Phase-1 LR to avoid wiping multilingual priors
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}
+      eta_min: 1e-7
+
+EVAL:
+  BATCH_SIZE: 4
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Thai-Finetune-Phase2/checkpoints/last.ckpt"
+  SPLIT: test
+  BATCH_SIZE: 8
+  REPLICATION_TIMES: 1
+  SAVE_PREDICTIONS: True
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: thai
+    DEBUG: False
+    NUM_SAMPLE:
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  # Reuse Phase-1 token cache (already contains Thai tokens)
+  CODE_PATH: TOKENS_full_4_datasets
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  DTW_ALIGN_MODE: 'jpe'
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 2
+  WANDB:
+    params:
+      project: SLG-SOKE-Thai-Finetune-Phase2
