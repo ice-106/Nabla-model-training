@@ -18,8 +18,8 @@ TRAIN:
   STAGE: lm_pretrain
   #---------------------------------
   NUM_WORKERS: 16
-  BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128. ~31K samples -> ~245 steps/epoch
-  END_EPOCH: 150 # ~37K gradient updates, matches from-scratch 3-dataset scale
+  BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128. ~56K samples (H2S 30711 + CSL 18401 + Phoenix 7092 + Thai 119) -> ~440 steps/epoch
+  END_EPOCH: 100 # ~44K gradient updates
   RESUME: ''
   PRETRAINED: ''
   # VAE fine-tuned with Thai from deto-03-finetune-thai-from-3-dataset.yaml

@@ -56,7 +56,7 @@ DATASET:
     DATASET_NAME: how2sign_csl_phoenix_thai
     DEBUG: False
     # Caps each dataset to min(NUM_SAMPLE, size):
-    #   H2S 30000 -> 1077, CSL 1077 -> 1077, Phoenix 519, Thai 119
+    #   H2S 30711 -> 1077, CSL 18401 -> 1077, Phoenix 7092 -> 1077, Thai 119 (uncapped)
     NUM_SAMPLE: 1077
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
