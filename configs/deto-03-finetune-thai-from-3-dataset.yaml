@@ -15,8 +15,8 @@ TRAIN:
   STAGE: vae
   #---------------------------------
   NUM_WORKERS: 16
-  BATCH_SIZE: 320
-  END_EPOCH: 100 # Fine-tune is short; from-scratch used 500
+  BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128 -> ~22 steps/epoch on ~2792 samples
+  END_EPOCH: 100 # ~2200 total gradient updates; watch for codebook drift on H2S/CSL/Phoenix
   RESUME: ''
   # Point this at the 3-dataset VAE checkpoint (H2S + CSL + Phoenix, no Thai)
   PRETRAINED: '../pretrained/tokenizer.ckpt'
