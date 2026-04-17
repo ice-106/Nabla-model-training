@@ -103,7 +103,7 @@ class Text2MotionDatasetToken(data.Dataset):
             if split == 'train':
                 ann_path = os.path.join(self.thai_root, 'val_vid.train')
             else:
-                ann_path = os.path.join(self.thai_root, f'val_vid.{split}')
+                ann_path = os.path.join(self.thai_root, f'val_vid.{split.lower()}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:100]
 
