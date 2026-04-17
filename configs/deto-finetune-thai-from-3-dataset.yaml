@@ -1,0 +1,99 @@
+# Checklist
+# 1. Update PRETRAINED path to the existing 3-dataset VAE checkpoint
+# 2. Verify NUM_SAMPLE cap (balances H2S/CSL; Phoenix & Thai keep their full sets)
+# 3. Verify Wandb project name
+# 4. Tune END_EPOCH / LR if drift is observed on the 3 original datasets
+
+NAME: DETO-Finetune-Thai-From-3-Dataset # Experiment name (creates new folder)
+ACCELERATOR: 'gpu'
+NUM_NODES: 1
+DEVICE: [0, 1, 2, 3]
+DEBUG: False
+
+TRAIN:
+  #---------------------------------
+  STAGE: vae
+  #---------------------------------
+  NUM_WORKERS: 16
+  BATCH_SIZE: 320
+  END_EPOCH: 100 # Fine-tune is short; from-scratch used 500
+  RESUME: ''
+  # Point this at the 3-dataset VAE checkpoint (H2S + CSL + Phoenix, no Thai)
+  PRETRAINED: '../pretrained/tokenizer.ckpt'
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-5 # 1/10 of from-scratch LR to preserve existing codebook
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}
+      eta_min: 1e-7
+
+
+EVAL:
+  BATCH_SIZE: 16
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: ./experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt
+  SPLIT: test
+  BATCH_SIZE: 8
+  REPLICATION_TIMES: 1
+  SAVE_PREDICTIONS: True
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: how2sign_csl_phoenix_thai
+    DEBUG: False
+    # Caps each dataset to min(NUM_SAMPLE, size):
+    #   H2S 30000 -> 1077, CSL 1077 -> 1077, Phoenix 519, Thai 119
+    # Prevents H2S from dominating while Thai keeps its full small set.
+    NUM_SAMPLE: 1077
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 20
+    PICK_ONE_TEXT: true
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+
+METRIC:
+  TYPE: ['MRMetrics']
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.default}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 5
+  WANDB:
+    params:
+      project: SLG-DETO-Finetune-Thai

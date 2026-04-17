@@ -23,7 +23,7 @@ TRAIN:
   END_EPOCH: 150 # End epoch
   RESUME: '' # Resume training from this path, folder to log and checkpoints
   PRETRAINED: '' # Pretrained model path, path to checkpoint
-  PRETRAINED_VAE: './experiments/mgpt/DETO-All-4-Datasets-H2S-CSL-Phoenix-Thai/checkpoints/last.ckpt' # VAE model path produced by deto-all-4-datasets.yaml
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt' # VAE model path produced by deto-all-4-datasets.yaml
 
   OPTIM:
     target: AdamW
