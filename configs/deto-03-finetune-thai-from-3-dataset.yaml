@@ -4,7 +4,7 @@
 # 3. Verify Wandb project name
 # 4. Tune END_EPOCH / LR if drift is observed on the 3 original datasets
 
-NAME: DETO-Finetune-Thai-From-3-Dataset # Experiment name (creates new folder)
+NAME: DETO-Finetune-Thai-From-3-Dataset-v2 # Experiment name (creates new folder)
 ACCELERATOR: 'gpu'
 NUM_NODES: 1
 DEVICE: [0, 1, 2, 3]
@@ -16,7 +16,7 @@ TRAIN:
   #---------------------------------
   NUM_WORKERS: 16
   BATCH_SIZE: 32 # Per-GPU; 4 GPUs -> effective 128 -> ~22 steps/epoch on ~2792 samples
-  END_EPOCH: 100 # ~2200 total gradient updates; watch for codebook drift on H2S/CSL/Phoenix
+  END_EPOCH: 200 # ~2200 total gradient updates; watch for codebook drift on H2S/CSL/Phoenix
   RESUME: ''
   # Point this at the 3-dataset VAE checkpoint (H2S + CSL + Phoenix, no Thai)
   PRETRAINED: '../pretrained/tokenizer.ckpt'
@@ -40,7 +40,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: ./experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset/checkpoints/last.ckpt
+  CHECKPOINTS: ./experiments/mgpt/DETO-Finetune-Thai-From-3-Dataset-v2/checkpoints/last.ckpt
   SPLIT: test
   BATCH_SIZE: 8
   REPLICATION_TIMES: 1
@@ -54,7 +54,7 @@ DATASET:
     # Caps each dataset to min(NUM_SAMPLE, size):
     #   H2S 30711 -> 1077, CSL 18401 -> 1077, Phoenix 7092 -> 1077, Thai 119 (uncapped)
     # Balances H2S/CSL/Phoenix at ~9x Thai exposure to prevent dominance.
-    NUM_SAMPLE: 1077
+    NUM_SAMPLE: 120
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T

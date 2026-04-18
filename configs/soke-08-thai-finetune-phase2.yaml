@@ -70,7 +70,7 @@ DATASET:
     UNIT_LEN: 4
     STD_TEXT: False
   # Reuse Phase-1 token cache (already contains Thai tokens)
-  CODE_PATH: TOKENS_full_4_datasets
+  CODE_PATH: TOKENS_capped_4_datasets
 
 METRIC:
   TYPE: ['TM2TMetrics']

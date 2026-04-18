@@ -1,4 +1,4 @@
-NAME: DETO-3-Dataset-One-Go-last-ckpt # Experiment names
+NAME: DETO-3-Dataset-Default # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
@@ -44,12 +44,13 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: how2sign_csl_phoenix
+    DATASET_NAME: how2sign_csl_phoenix_thai
     DEBUG: False # [MODIFIED] Set to True to train only one data point.
     NUM_SAMPLE:   # [MODIFIED] Set to integer to sample subset (e.g. 100).
     ROOT: ../data/How2Sign
     CSL_ROOT: ../data/CSL-Daily
     PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
     MEAN_PATH: ../data/CSL-Daily/mean.pt
     STD_PATH: ../data/CSL-Daily/std.pt
     MAX_MOTION_LEN: 400

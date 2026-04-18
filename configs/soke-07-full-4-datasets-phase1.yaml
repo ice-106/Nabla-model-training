@@ -68,7 +68,7 @@ DATASET:
     FRAME_RATE: 20.0
     UNIT_LEN: 4
     STD_TEXT: False
-  CODE_PATH: TOKENS_full_4_datasets
+  CODE_PATH: TOKENS_capped_4_datasets
 
 METRIC:
   TYPE: ['TM2TMetrics']
