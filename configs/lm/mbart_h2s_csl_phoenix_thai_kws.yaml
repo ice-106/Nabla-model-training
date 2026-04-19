@@ -1,0 +1,10 @@
+target: mGPT.archs.mgpt_mbart.Mbart_Based_MLM
+params:
+  model_type: mbart_multi
+  model_path: ./deps/mbart-h2s-csl-phoenix
+  num_heads: 3
+  stage: ${TRAIN.STAGE}
+  motion_codebook_size: ${model.params.codebook_size}
+  ablation: ${ABLATION}
+  name2kws_path: ${KWS.NAME2KWS_PATH}
+  word2code_path: ${KWS.WORD2CODE_PATH}

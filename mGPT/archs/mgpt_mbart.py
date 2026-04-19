@@ -95,6 +95,8 @@ class Mbart_Based_MLM(nn.Module):
         noise_density: float = 0.15,
         mean_noise_span_length: int = 3,
         num_heads: int = 2,  #number of lm heads
+        name2kws_path: str = 'scripts/name2kws_{split}.json',
+        word2code_path: str = 'scripts/word2code.json',
         **kwargs,
     ) -> None:
 
@@ -192,10 +194,10 @@ class Mbart_Based_MLM(nn.Module):
         self.name2kws = {}
         for split in ['train', 'val', 'test']:
             # load pre-extracted keywords
-            with open(f'scripts/name2kws_{split}.json', 'r') as f:
+            with open(name2kws_path.format(split=split), 'r') as f:
                 data = json.load(f)
                 self.name2kws.update(data)
-        with open('scripts/word2code.json', 'r') as f:
+        with open(word2code_path, 'r') as f:
             self.word2code = json.load(f)
 
 
