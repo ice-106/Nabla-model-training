@@ -73,6 +73,7 @@ class Text2MotionDatasetToken(data.Dataset):
                 ann_path = os.path.join(self.csl_root, 'csl_clean.train')
             else:
                 ann_path = os.path.join(self.csl_root, f'csl_clean.{split}')
+            print(f'[DEBUG] csl ann_path={ann_path} exists={os.path.exists(ann_path)} size={os.path.getsize(ann_path) if os.path.exists(ann_path) else "N/A"}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:100]
 
@@ -88,6 +89,7 @@ class Text2MotionDatasetToken(data.Dataset):
                 ann_path = os.path.join(self.phoenix_root, 'phoenix14t.dev')
             else:
                 ann_path = os.path.join(self.phoenix_root, f'phoenix14t.{split}')
+            print(f'[DEBUG] phoenix ann_path={ann_path} exists={os.path.exists(ann_path)} size={os.path.getsize(ann_path) if os.path.exists(ann_path) else "N/A"}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:100]
 
@@ -104,6 +106,7 @@ class Text2MotionDatasetToken(data.Dataset):
                 ann_path = os.path.join(self.thai_root, 'val_vid.train')
             else:
                 ann_path = os.path.join(self.thai_root, f'val_vid.{split.lower()}')
+            print(f'[DEBUG] thai ann_path={ann_path} exists={os.path.exists(ann_path)} size={os.path.getsize(ann_path) if os.path.exists(ann_path) else "N/A"}')
             with gzip.open(ann_path, 'rb') as f:
                 self.ann = pickle.load(f) #[:100]
 
