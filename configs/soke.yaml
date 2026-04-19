@@ -8,7 +8,7 @@
 NAME: SOKE # Experiment names: Set new name to create new environment!
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3]
+DEVICE: [0] # Index of gpus eg. [0] or [0,1,2,3]
 DEBUG: False #[MODIFIED] Add debug mode
 
 TRAIN:

@@ -10,7 +10,7 @@
 NAME: SOKE-Full-4-Datasets-Phase1
 ACCELERATOR: 'gpu'
 NUM_NODES: 1
-DEVICE: [0, 1, 2, 3]
+DEVICE: [0]
 DEBUG: False
 
 TRAIN:

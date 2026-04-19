@@ -1,7 +1,7 @@
 NAME: DETO-3-Dataset-Default # Experiment names
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0, 1, 2, 3] # Index of gpus eg. [0] or [0,1,2,3,4,5]
+DEVICE: [0] # Index of gpus eg. [0] or [0,1,2,3,4,5]
 # [MODIFIED]
 DEBUG: False # Debug mode
 
@@ -44,7 +44,7 @@ TEST:
 DATASET:
   target: mGPT.data.H2S.H2SDataModule
   H2S:
-    DATASET_NAME: how2sign_csl_phoenix_thai
+    DATASET_NAME: csl
     DEBUG: False # [MODIFIED] Set to True to train only one data point.
     NUM_SAMPLE:   # [MODIFIED] Set to integer to sample subset (e.g. 100).
     ROOT: ../data/How2Sign

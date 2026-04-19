@@ -10,7 +10,7 @@
 NAME: SOKE-v3-Thai-Full-Train-4GPU-BS1 # Experiment names: Set new name to create new experiment!
 ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
 NUM_NODES: 1 # Number of GPU nodes for distributed training
-DEVICE: [0, 1, 2, 3] # [MODIFIED] 4 GPUs with BS=1 each -> effective batch=4, ~30 steps/epoch
+DEVICE: [0] # [MODIFIED] 4 GPUs with BS=1 each -> effective batch=4, ~30 steps/epoch
 DEBUG: false # [MODIFIED] Disabled for full training
 
 TRAIN:
