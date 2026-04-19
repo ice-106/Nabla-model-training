@@ -19,6 +19,7 @@ DEBUG: false # [MODIFIED] Disabled for full training
 KWS:
   NAME2KWS_PATH: scripts/thai_name2kws_{split}_smoothed_smplerx-wilor.json
   WORD2CODE_PATH: scripts/thai_word2code_smoothed_smplerx-wilor.json
+  DEBUG: false  # [MODIFIED] Set true to print prompts after keyword strings are appended (forward_encdec + generate_direct)
 
 TRAIN:
   #---------------------------------

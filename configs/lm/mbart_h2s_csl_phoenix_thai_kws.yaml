@@ -8,3 +8,4 @@ params:
   ablation: ${ABLATION}
   name2kws_path: ${KWS.NAME2KWS_PATH}
   word2code_path: ${KWS.WORD2CODE_PATH}
+  debug_kws: ${KWS.DEBUG}

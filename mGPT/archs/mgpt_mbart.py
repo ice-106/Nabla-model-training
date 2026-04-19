@@ -97,6 +97,7 @@ class Mbart_Based_MLM(nn.Module):
         num_heads: int = 2,  #number of lm heads
         name2kws_path: str = 'scripts/name2kws_{split}.json',
         word2code_path: str = 'scripts/word2code.json',
+        debug_kws: bool = False,
         **kwargs,
     ) -> None:
 
@@ -189,6 +190,7 @@ class Mbart_Based_MLM(nn.Module):
         if self.lm_type == 'dec':
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
+        self.debug_kws = debug_kws
         self.num_kws_per_sen = 3 if self.model_type == 'mbart_multi' else 0
         self.max_len_per_part = 10
         self.name2kws = {}
@@ -329,7 +331,10 @@ class Mbart_Based_MLM(nn.Module):
             kw_strings = self.get_kw_strings(name, src)
             for i in range(len(inputs)):
                 inputs[i] += kw_strings[i]
-            # print(inputs)
+            if self.debug_kws:
+                print('[KWS DEBUG][forward_encdec] prompts after keyword append:')
+                for i, p in enumerate(inputs):
+                    print(f'  [{i}] name={name[i]} src={src[i]} | {p}')
 
         # print(texts)
         # train inputs
@@ -489,7 +494,12 @@ class Mbart_Based_MLM(nn.Module):
             kw_strings = self.get_kw_strings(name, src)
             for i in range(len(texts)):
                 texts[i] += kw_strings[i]
-            # print(texts)
+            if self.debug_kws:
+                print('[KWS DEBUG][generate_direct] prompts after keyword append:')
+                for i, p in enumerate(texts):
+                    n = name[i] if name is not None else None
+                    s = src[i] if src is not None else None
+                    print(f'  [{i}] name={n} src={s} | {p}')
 
         source_encoding = self.tokenizer(texts,
                                          padding='longest',
