@@ -7,6 +7,6 @@ params:
   motion_codebook_size: ${model.params.codebook_size}
   ablation: ${ABLATION}
   use_kws: ${oc.select:KWS.ENABLED,false}
-  name2kws_path: ${oc.select:KWS.NAME2KWS_PATH,scripts/name2kws_{split}.json}
+  name2kws_path: ${oc.select:KWS.NAME2KWS_PATH,'scripts/name2kws_{split}.json'}
   word2code_path: ${oc.select:KWS.WORD2CODE_PATH,scripts/word2code.json}
   debug_kws: ${oc.select:KWS.DEBUG,false}
