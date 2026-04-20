@@ -13,6 +13,14 @@ NUM_NODES: 1
 DEVICE: [0]
 DEBUG: False
 
+# Keyword source files consumed by the LM (see configs/lm/mbart_h2s_csl_phoenix.yaml).
+# name2kws path supports a {split} placeholder expanded at load time for train/val/test.
+KWS:
+  ENABLED: true
+  NAME2KWS_PATH: scripts/name2kws_{split}.json
+  WORD2CODE_PATH: scripts/word2code.json
+  DEBUG: false
+
 TRAIN:
   #---------------------------------
   STAGE: lm_pretrain
