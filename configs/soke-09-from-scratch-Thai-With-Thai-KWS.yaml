@@ -52,7 +52,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-v3-Thai-With-Thai-KWS-4GPU-BS1/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-v4-Thai-With-Thai-KWS-4GPU-BS1/checkpoints/last.ckpt"
   SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
