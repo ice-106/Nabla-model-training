@@ -16,7 +16,7 @@ DEBUG: False
 # Keyword source files consumed by the LM (see configs/lm/mbart_h2s_csl_phoenix.yaml).
 # name2kws path supports a {split} placeholder expanded at load time for train/val/test.
 KWS:
-  ENABLED: true
+  ENABLED: false
   NAME2KWS_PATH: scripts/name2kws_{split}.json
   WORD2CODE_PATH: scripts/word2code.json
   DEBUG: false
@@ -52,7 +52,7 @@ EVAL:
 
 TEST:
   CHECKPOINTS: "./experiments/mgpt/SOKE-Full-4-Datasets-Phase1/checkpoints/last.ckpt"
-  SPLIT: test
+  SPLIT: val
   BATCH_SIZE: 8
   REPLICATION_TIMES: 1
   SAVE_PREDICTIONS: True
@@ -102,7 +102,7 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 5
+  VAL_EVERY_STEPS: 15
   WANDB:
     params:
       project: SLG-SOKE-Full-4-Datasets-Phase1

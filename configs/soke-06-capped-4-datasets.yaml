@@ -11,7 +11,7 @@
 NAME: SOKE-Capped-4-Datasets-H2S-CSL-Phoenix-Thai
 ACCELERATOR: 'gpu'
 NUM_NODES: 1
-DEVICE: [0, 1, 2, 3]
+DEVICE: [0]
 DEBUG: False
 
 TRAIN:
@@ -44,7 +44,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-Capped-4-Datasets-H2S-CSL-Phoenix-Thai/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Capped-4-Datasets-H2S-CSL-Phoenix-Thai/checkpoints/min-thai_DTW_MPJPE_PA_lhandepoch=119.ckpt"
   SPLIT: test
   BATCH_SIZE: 8
   REPLICATION_TIMES: 1
@@ -97,7 +97,7 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 5
+  VAL_EVERY_STEPS: 15
   WANDB:
     params:
       project: SLG-SOKE-Capped-4-Datasets

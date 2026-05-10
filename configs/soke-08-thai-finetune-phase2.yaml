@@ -10,7 +10,7 @@
 NAME: SOKE-Thai-Finetune-Phase2
 ACCELERATOR: 'gpu'
 NUM_NODES: 1
-DEVICE: [0, 1, 2, 3]
+DEVICE: [0]
 DEBUG: False
 
 TRAIN:
@@ -44,7 +44,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-Thai-Finetune-Phase2/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Thai-Finetune-Phase2/checkpoints/min-thai_DTW_MPJPE_PA_lhandepoch=59.ckpt"
   SPLIT: test
   BATCH_SIZE: 8
   REPLICATION_TIMES: 1
