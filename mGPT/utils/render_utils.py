@@ -64,7 +64,9 @@ def render_video_from_meshes(verts_list, faces, save_path, fps=20, cam_trans=Non
     """
     if cam_trans is None:
         cam_trans = np.array([-2.6177440e-03, 0.1, -13], dtype=np.float32)
-        
+    if fps is None:
+        fps = 20
+
     h, w = 512, 512
     frames = []
     length = len(verts_list)
