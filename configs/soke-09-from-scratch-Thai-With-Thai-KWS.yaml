@@ -7,7 +7,7 @@
 # 6. Set Epcoh to original (150)
 # 7. Check the type of metric (PA, Non-PA)
 
-NAME: SOKE-v3-Thai-With-Thai-KWS-4GPU-BS1 # Experiment names: Set new name to create new experiment!
+NAME: SOKE-v4-Thai-With-Thai-KWS-4GPU-BS1 # Experiment names: Set new name to create new experiment!
 ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
 NUM_NODES: 1 # Number of GPU nodes for distributed training
 DEVICE: [0, 1, 2, 3] # [MODIFIED] 4 GPUs with BS=1 each -> effective batch=4, ~30 steps/epoch
@@ -27,7 +27,7 @@ TRAIN:
   #---------------------------------
   NUM_WORKERS: 16 # Number of workers
   BATCH_SIZE: 1 # [MODIFIED] BS=1 per GPU x 4 GPUs = effective batch 4, ~30 steps/epoch
-  END_EPOCH: 500 # [MODIFIED] 500 epochs x ~30 steps = ~15,000 gradient updates
+  END_EPOCH: 400 # [MODIFIED] 400 epochs x ~30 steps = ~12,000 gradient updates
   RESUME: '' # Resume training from this path, folder to log and checkpoints
   # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
   PRETRAINED: '' # Preatrained model path, path to check point
@@ -52,7 +52,7 @@ EVAL:
   SPLIT: val
 
 TEST:
-  CHECKPOINTS: "./experiments/mgpt/SOKE-v3-Thai-With-Thai-KWS-4GPU-BS1/checkpoints/last.ckpt"
+  CHECKPOINTS: "./experiments/mgpt/SOKE-v4-Thai-With-Thai-KWS-4GPU-BS1/checkpoints/last.ckpt"
   SPLIT: test # [MODIFIED] Originally, this is test
   BATCH_SIZE: 8 # training Batch size
   REPLICATION_TIMES: 1 # Number of times to replicate the test
@@ -104,7 +104,7 @@ model:
 
 LOGGER:
   TYPE: ['wandb']
-  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
+  VAL_EVERY_STEPS: 50 # [MODIFIED] Validate every 10 epochs to reduce overhead
   WANDB:
     params:
       project: SLG-Lanta-Thai-From-Scratch

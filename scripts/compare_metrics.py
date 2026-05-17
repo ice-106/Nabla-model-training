@@ -224,7 +224,7 @@ def try_load_smplx_pipeline(mean_path, std_path, device):
         mean = torch.load(mean_path, map_location=device, weights_only=False)
         std = torch.load(std_path, map_location=device, weights_only=False)
 
-        # Preprocessing as in convert_pkls_to_mp4.py / vis_mesh.py
+        # Preprocessing as in scripts/convert_pkls_to_mp4.py / scripts/vis_mesh.py
         mean = mean[(3 + 3 * 11):]
         mean = torch.cat([mean[:-20], mean[-10:]], dim=0)
         std = std[(3 + 3 * 11):]

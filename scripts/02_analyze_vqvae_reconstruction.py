@@ -66,7 +66,7 @@ SMPLX_KEYS = [
 
 
 # ---------------------------------------------------------------------------
-# Reusable utilities (from decode_word_tokens.py)
+# Reusable utilities (from scripts/decode_word_tokens.py)
 # ---------------------------------------------------------------------------
 def load_vaes(ckpt_path, device):
     """Load body, left-hand, and right-hand VQVae models from a checkpoint."""
@@ -157,7 +157,7 @@ def load_thai_poses(data_dir):
         return []
 
     samples = []
-    for name in sorted(os.listdir(poses_dir))[:150]: # Hardcode to load only 150 sample
+    for name in sorted(os.listdir(poses_dir)):
         sample_dir = os.path.join(poses_dir, name)
         if not os.path.isdir(sample_dir):
             continue

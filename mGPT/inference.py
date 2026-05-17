@@ -48,7 +48,13 @@ def run_inference(cfg, model, datamodule, logger):
             # Prepare input (batch of 1)
             batch_texts = [text]
             batch_src = [src]
-            batch_name = [f"infer_{i}"]
+            # If cfg.INFER_NAME is provided (e.g. from the demo notebook), use the
+            # real video_id so KWS lookup in get_kw_strings hits name2kws.
+            infer_names = cfg.get("INFER_NAME") if hasattr(cfg, "get") else None
+            if infer_names and i < len(infer_names) and infer_names[i]:
+                batch_name = [infer_names[i]]
+            else:
+                batch_name = [f"infer_{i}"]
             
             # Generate motion tokens using generate_conditional
             # Note: name parameter is used for keyword retrieval, unknown names return empty strings
@@ -181,6 +187,10 @@ def run_inference(cfg, model, datamodule, logger):
             logger.error(f"Failed to process text '{text}': {e}")
             import traceback
             traceback.print_exc()
+            # Notebook/debug usage: opt in to surfacing the real exception
+            # instead of silently moving to the next text.
+            if hasattr(cfg, "get") and cfg.get("INFER_RAISE_ERRORS"):
+                raise
             continue
     
     logger.info(f"Inference complete. Results saved to {output_dir}")

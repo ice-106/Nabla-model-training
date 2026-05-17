@@ -115,7 +115,7 @@ def main():
     h2s_csl_mean = torch.load(args.mean_path, map_location=device)
     h2s_csl_std = torch.load(args.std_path, map_location=device)
     
-    # Process mean/std as in vis_mesh.py
+    # Process mean/std as in scripts/vis_mesh.py
     h2s_csl_mean = h2s_csl_mean[(3+3*11):]
     h2s_csl_mean = torch.cat([h2s_csl_mean[:-20], h2s_csl_mean[-10:]], dim=0)
     h2s_csl_std = h2s_csl_std[(3+3*11):]

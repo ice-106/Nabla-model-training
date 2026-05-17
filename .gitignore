@@ -35,4 +35,4 @@ CLAUDE.md
 agentScripts/
 .gemini/
 .claude/
-AGENTS.md
+.ipynb_checkpoints/
