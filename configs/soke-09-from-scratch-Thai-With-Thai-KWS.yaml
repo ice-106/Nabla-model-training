@@ -1,0 +1,112 @@
+# Checklist
+# 1. Change Name
+# 2. Disable Debug mode (Two places)
+# 3. Verify dataset name
+# 4. Verify RESUME whether you want to continue or not
+# 5. Verify Wandb Name
+# 6. Set Epcoh to original (150)
+# 7. Check the type of metric (PA, Non-PA)
+
+NAME: SOKE-v3-Thai-With-Thai-KWS-4GPU-BS1 # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
+NUM_NODES: 1 # Number of GPU nodes for distributed training
+DEVICE: [0, 1, 2, 3] # [MODIFIED] 4 GPUs with BS=1 each -> effective batch=4, ~30 steps/epoch
+DEBUG: false # [MODIFIED] Disabled for full training
+
+# [MODIFIED] Keyword source files consumed by the LM (see configs/lm/mbart_h2s_csl_phoenix_thai_kws.yaml).
+# Override these per experiment to point at language-specific keyword/code files.
+# name2kws path supports a {split} placeholder expanded at load time for train/val/test.
+KWS:
+  NAME2KWS_PATH: scripts/thai_name2kws_{split}_smoothed_smplerx-wilor.json
+  WORD2CODE_PATH: scripts/thai_word2code_smoothed_smplerx-wilor.json
+  DEBUG: false  # [MODIFIED] Set true to print prompts after keyword strings are appended (forward_encdec + generate_direct)
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
+  #---------------------------------
+  NUM_WORKERS: 16 # Number of workers
+  BATCH_SIZE: 1 # [MODIFIED] BS=1 per GPU x 4 GPUs = effective batch 4, ~30 steps/epoch
+  END_EPOCH: 500 # [MODIFIED] 500 epochs x ~30 steps = ~15,000 gradient updates
+  RESUME: '' # Resume training from this path, folder to log and checkpoints
+  # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
+  PRETRAINED: '' # Preatrained model path, path to check point
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Train-ALL-Thai-Dataset-Smoothed-SMPLer-X-WiLOR/checkpoints/last.ckpt' # Vae model path
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4 # Originally, 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
+      eta_min: 1e-5 # [MODIFIED] Higher minimum LR to avoid stalling late in training
+
+# Evaluating Configuration
+EVAL:
+  BATCH_SIZE: 1 # [MODIFIED] Reduced to avoid OOM during SMPLX validation
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-v3-Thai-With-Thai-KWS-4GPU-BS1/checkpoints/last.ckpt"
+  SPLIT: test # [MODIFIED] Originally, this is test
+  BATCH_SIZE: 8 # training Batch size
+  REPLICATION_TIMES: 1 # Number of times to replicate the test
+  SAVE_PREDICTIONS: True # set to save prediction
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: thai
+    DEBUG: false # [MODIFIED] Full training, not debug
+    NUM_SAMPLE:   # [MODIFIED] Use all 119 samples
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Smoothed_SMPLer-X-WiLOR
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_Thai_Smoothed_SMPLer-X-WiLOR_From_Scratch
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix_thai_kws}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
+  WANDB:
+    params:
+      project: SLG-Lanta-Thai-From-Scratch
+      # id: "ygajm5v9"
+      # resume: "must"
