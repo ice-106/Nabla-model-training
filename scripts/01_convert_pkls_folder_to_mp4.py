@@ -1,7 +1,7 @@
 """
 Convert folders of per-frame SMPL-X .pkl files into .mp4 videos.
 
-Unlike convert_pkls_to_mp4.py (which takes single pkl files containing
+Unlike scripts/convert_pkls_to_mp4.py (which takes single pkl files containing
 pre-computed features), this script handles a directory tree where each
 subfolder represents one sign-language clip and contains numbered per-frame
 pkl files (e.g. 000001.pkl, 000002.pkl, ...).

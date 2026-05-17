@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soke"
+version = "0.1.0"
+description = "SOKE (Signs as Tokens) — ICCV 2025 retrieval-enhanced multilingual sign language generator."
+requires-python = ">=3.10"
+readme = "README.md"
+dependencies = [
+    "torch",
+    "pytorch-lightning",
+    "torchmetrics",
+    "tensorboard",
+    "omegaconf",
+    "transformers",
+    "sentencepiece",
+    "diffusers",
+    "einops",
+    "wandb",
+    "shortuuid",
+    "rich",
+    "tqdm",
+    "matplotlib",
+    "seaborn",
+    "pandas",
+    "numpy",
+    "h5py",
+    "scikit-image",
+    "spacy",
+    "ftfy",
+    "more-itertools",
+    "natsort",
+    "joblib",
+    "smplx",
+    "trimesh",
+    "pyrender",
+    "moviepy",
+    "librosa",
+    "triangle",
+    "pillow",
+    "bpy",
+]
+
+[tool.setuptools]
+packages = ["mGPT"]

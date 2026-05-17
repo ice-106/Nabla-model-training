@@ -66,7 +66,7 @@ SMPLX_KEYS = [
 
 
 # ---------------------------------------------------------------------------
-# Reusable utilities (from decode_word_tokens.py)
+# Reusable utilities (from scripts/decode_word_tokens.py)
 # ---------------------------------------------------------------------------
 def load_vaes(ckpt_path, device):
     """Load body, left-hand, and right-hand VQVae models from a checkpoint."""

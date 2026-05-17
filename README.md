@@ -8,11 +8,13 @@ Sign language is a visual language that encompasses all linguistic features of n
 
 
 ## Environment
-Please run 
+Please run
 ```
 conda create python=3.10 --name soke
 conda activate soke
-pip install -r requirements.txt
+pip install -e .                    # development install
+# or, for an exact reproduction of the verified env:
+pip install -r requirements.lock
 ```
 
 
@@ -55,7 +57,7 @@ We also provide the [mean](https://drive.google.com/file/d/1NH-eVtS0nNjMjCwae-A1
 ## Autoregressive Multilingual Generator
 ### Training
 ```
-python -m get_motion_code --cfg configs/soke.yaml --nodebug
+python -m scripts.get_motion_code --cfg configs/soke.yaml --nodebug
 python -m train --cfg configs/soke.yaml --nodebug  #Note that please first update the path of the tokenizer's checkpoint.
 ```
 
@@ -67,11 +69,11 @@ python -m test --cfg configs/soke.yaml --task t2m  #you can set SAVE_PREDICTIONS
 ## Visualizations
 Simple visualizations for meshes can be done by running
 ```
-python -m vis_mesh --cfg=configs/soke.yaml --demo_dataset=csl
+python -m scripts.vis_mesh --cfg=configs/soke.yaml --demo_dataset=csl
 ```
 For colorful visualizations, please refer to the configurations of [BlenderToolbox](https://github.com/HTDerekLiu/BlenderToolbox), and run
 ```
-python vis_blender.py
+python -m scripts.vis_blender
 ```
 
 ## Acknowledgements
