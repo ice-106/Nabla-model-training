@@ -95,6 +95,7 @@ class Mbart_Based_MLM(nn.Module):
         noise_density: float = 0.15,
         mean_noise_span_length: int = 3,
         num_heads: int = 2,  #number of lm heads
+        use_kws: bool = False,
         name2kws_path: str = 'scripts/name2kws_{split}.json',
         word2code_path: str = 'scripts/word2code.json',
         debug_kws: bool = False,
@@ -190,17 +191,21 @@ class Mbart_Based_MLM(nn.Module):
         if self.lm_type == 'dec':
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
+        self.use_kws = use_kws
         self.debug_kws = debug_kws
-        self.num_kws_per_sen = 3 if self.model_type == 'mbart_multi' else 0
         self.max_len_per_part = 10
         self.name2kws = {}
-        for split in ['train', 'val', 'test']:
-            # load pre-extracted keywords
-            with open(name2kws_path.format(split=split), 'r') as f:
-                data = json.load(f)
-                self.name2kws.update(data)
-        with open(word2code_path, 'r') as f:
-            self.word2code = json.load(f)
+        self.word2code = {}
+        if self.use_kws and self.model_type == 'mbart_multi':
+            self.num_kws_per_sen = 3
+            for split in ['train', 'val', 'test']:
+                # load pre-extracted keywords
+                with open(name2kws_path.format(split=split), 'r') as f:
+                    self.name2kws.update(json.load(f))
+            with open(word2code_path, 'r') as f:
+                self.word2code = json.load(f)
+        else:
+            self.num_kws_per_sen = 0
 
 
     def map_ids(self, input_ids: torch.Tensor, direction: str ='token_to_emb'):
