@@ -2,9 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Machine context
+This checkout runs on the `chulaai-server-001` GPU server: Linux x86_64 with a single **NVIDIA RTX 5090** (CUDA). Code runs on GPU `0`; there is no MPS/Apple-silicon path here.
+
 ## Important note
-- Please use conda environment 'pytorchmacos' to run code.
-- Any code you generate should be locate in agentScripts folder or /tmp/ if you prefer. Note: `agentScripts/` is gitignored — files there are local scratch and never enter the repo. Use `scripts/` for utilities that should be checked in (invoke as `python -m scripts.<name>` from the repo root).
+- Run all code in the project conda environment: `conda activate /mnt/hdd1/users/cham_00102/01_SOKE/envs` (Python 3.11, torch 2.11+cu130, CUDA enabled). It is a path-based env (no short name); always activate it by full path.
+- Any code you generate should be located in the `agentScripts/` folder or `/tmp/` if you prefer. Note: `agentScripts/` is gitignored — files there are local scratch and never enter the repo. Use `scripts/` for utilities that should be checked in (invoke as `python -m scripts.<name>` from the repo root).
 
 ## Project Overview
 
@@ -13,14 +16,24 @@ SOKE (Signs as Tokens) - official implementation of the ICCV 2025 paper "Signs a
 ## Commands
 
 ### Environment Setup
+The verified environment already exists on this server — just activate it:
 ```bash
-conda create python=3.10 --name soke
-conda activate soke
-pip install -e .                    # development install (loose top-level deps from pyproject.toml)
-# or, for an exact reproduction of the verified env:
-pip install -r requirements.lock
+conda activate /mnt/hdd1/users/cham_00102/01_SOKE/envs   # Python 3.11, torch 2.11+cu130 (CUDA)
+```
+
+One-time asset prep (only if not already downloaded):
+```bash
 sh prepare/download_t2m_evaluators.sh
 sh prepare/prepare_t5.sh
+```
+
+To recreate the env from scratch (rarely needed):
+```bash
+conda create -p /mnt/hdd1/users/cham_00102/01_SOKE/envs python=3.11
+conda activate /mnt/hdd1/users/cham_00102/01_SOKE/envs
+pip install -e .                    # development install (loose top-level deps from pyproject.toml)
+# or, for an exact reproduction of the upstream verified env:
+pip install -r requirements.lock
 ```
 
 ### Stage 1: Decoupled Tokenizer (VQVae)
@@ -53,9 +66,9 @@ python -m scripts.vis_blender
 ### Useful CLI flags
 - `--nodebug` - required for real training (without it, runs in debug mode with wandb offline and 1-step validation)
 - `--batch_size N` - override batch size
-- `--device 0 1` - specify GPU indices
+- `--device 0` - specify GPU index; this server has a single RTX 5090, so use `0`
 - `--task t2m` - set evaluation task type
-- `--use_gpus "0,1,2,3"` - set CUDA_VISIBLE_DEVICES
+- `--use_gpus "0"` - set CUDA_VISIBLE_DEVICES (single GPU on this box)
 
 ## Architecture
 
