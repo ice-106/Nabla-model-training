@@ -1,0 +1,109 @@
+# Checklist
+# 1. Change Name
+# 2. Disable Debug mode (Two places)
+# 3. Verify dataset name
+# 4. Verify RESUME whether you want to continue or not
+# 5. Verify Wandb Name
+# 6. Set Epcoh to original (150)
+# 7. Check the type of metric (PA, Non-PA)
+#
+# This is the word-augmented variant of soke-10: the THAI_ROOT adds 17 isolated word
+# clips (text = the word) to the 119 sentence train samples, while val/test stay
+# identical to the soke-10 baseline so the metric delta isolates the word-level data.
+# The DETO tokenizer is reused (PRETRAINED_VAE unchanged); only this SOKE is retrained.
+
+NAME: SOKE-Thai-Hand4WholePP-WithWords-From-Scratch # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
+NUM_NODES: 1 # Number of GPU nodes for distributed training
+DEVICE: [0] # [MODIFIED] Single RTX 5090 on chulaai-server (templates used Lanta 4-GPU [0,1,2,3])
+DEBUG: false # [MODIFIED] Disabled for full training
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
+  #---------------------------------
+  NUM_WORKERS: 16 # Number of workers
+  BATCH_SIZE: 1 # [MODIFIED] BS=1 per GPU
+  END_EPOCH: 500 # [MODIFIED] 500 epochs
+  RESUME: '' # Resume training from this path, folder to log and checkpoints
+  # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
+  PRETRAINED: '' # Preatrained model path, path to check point
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Train-Thai-Hand4WholePP/checkpoints/last.ckpt' # Vae model path (reused DETO tokenizer)
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4 # Originally, 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
+      eta_min: 1e-5 # [MODIFIED] Higher minimum LR to avoid stalling late in training
+
+# Evaluating Configuration
+EVAL:
+  BATCH_SIZE: 1 # [MODIFIED] Reduced to avoid OOM during SMPLX validation
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Thai-Hand4WholePP-WithWords-From-Scratch/checkpoints/last.ckpt"
+  SPLIT: test # [MODIFIED] Originally, this is test
+  BATCH_SIZE: 8 # training Batch size
+  REPLICATION_TIMES: 1 # Number of times to replicate the test
+  SAVE_PREDICTIONS: True # set to save prediction
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: thai
+    DEBUG: false # [MODIFIED] Full training, not debug
+    NUM_SAMPLE:   # [MODIFIED] Use all samples
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Hand4WholePP_WithWords
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_Thai_Hand4WholePP_WithWords_From_Scratch
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
+  WANDB:
+    params:
+      project: SLG-ChulaAI-Thai-Hand4WholePP-WithWords
+      # id: "ygajm5v9"
+      # resume: "must"

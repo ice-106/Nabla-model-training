@@ -89,6 +89,9 @@ def render_video_from_meshes(verts_list, faces, save_path, fps=20, cam_trans=Non
             
         frames.append(frame)
     
-    clip = ImageSequenceClip(frames, fps=fps)
-    clip.write_videofile(save_path, fps=fps)
+    # NOTE: moviepy 1.0.3's write path is broken in this env (the use_clip_fps_by_default
+    # decorator drops fps -> '%.02f' % None TypeError), so encode via imageio (also ffmpeg).
+    import imageio
+    frames = [np.asarray(f, dtype=np.uint8) for f in frames]
+    imageio.mimwrite(save_path, frames, fps=fps, codec='libx264', macro_block_size=None)
     print(f"Video saved to {save_path}")

@@ -14,7 +14,7 @@ Each pkl stores raw SMPL-X parameters:
 Usage:
   conda activate pytorchmacos
   python scripts/01_convert_pkls_folder_to_mp4.py \
-      --input_dir /project/lt200449-ttsign/01_SOKE/data/Thai_Hand4Whole/ \
+      --input_dir /project/lt200449-ttsign/01_SOKE/data/Thai_Hand4WholePP/ \
       --output_dir /project/lt200449-ttsign/01_SOKE/02_result/[Hand4Whole++]_gt_thai_video \
       --fps 20 \
       --mesh_rotation 180X      # Flips the mesh upside down if rendered inverted \ 
