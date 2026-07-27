@@ -99,6 +99,18 @@ class Mbart_Based_MLM(nn.Module):
         name2kws_path: str = 'scripts/name2kws_{split}.json',
         word2code_path: str = 'scripts/word2code.json',
         debug_kws: bool = False,
+        # [MODIFIED] Thai whole-word tokens (vocab-transfer / dict-init baseline).
+        # Empty path = feature off, so every non-Thai config keeps its exact old vocab size
+        # and stays checkpoint-compatible.
+        thai_word_tokens_path: str = '',
+        # 'dict'     = donor is the word's real English translation (the proposed method)
+        # 'shuffled' = donor is a seeded DERANGEMENT of the same 31 donors, so every pairing
+        #              is wrong. Same vectors, same norms, same spread as 'dict' - only the
+        #              correspondence is destroyed. This is the control arm.
+        # 'none'     = leave the rows exactly as resize_token_embeddings() made them.
+        thai_word_init: str = 'dict',
+        thai_word_init_seed: int = 0,
+        map_ids_unk_warn_ratio: float = 0.05,
         **kwargs,
     ) -> None:
 
@@ -129,24 +141,69 @@ class Mbart_Based_MLM(nn.Module):
         all_motion_str = [f'<motion_id_{i}>' for i in range(self.m_codebook_size + 3)]
         all_hand_str = [f'<hand_id_{i}>' for i in range(self.hand_codebook_size + 3)] if hand_codebook_size>0 else []
         all_rhand_str = [f'<rhand_id_{i}>' for i in range(self.rhand_codebook_size + 3)] if rhand_codebook_size>0 else []
-        self.tokenizer.add_tokens(all_motion_str + all_hand_str + all_rhand_str)
+        # [MODIFIED] Thai whole-word tokens. The pruned checkpoint kept 0 of mBART's 4336
+        # Thai tokens, so Thai text otherwise collapses to <unk>. Re-introducing the words
+        # this corpus actually uses restores the text channel.
+        # 'random' was the old name for what is now 'shuffled'; keep it working so existing
+        # configs do not silently change meaning.
+        if thai_word_init == 'random':
+            print("[thai-init] 'random' is the old name for 'shuffled'; using 'shuffled'.")
+            thai_word_init = 'shuffled'
+        # An unknown mode used to fall through to "do nothing", which made a typo look like a
+        # successful run. Fail loudly instead.
+        assert thai_word_init in ('dict', 'shuffled', 'none'), \
+            f"thai_word_init must be dict|shuffled|none, got {thai_word_init!r}"
+        self.thai_word_init = thai_word_init
+        self.thai_word_init_seed = thai_word_init_seed
+        self.map_ids_unk_warn_ratio = map_ids_unk_warn_ratio
+        self._unk_warned = 0
+        self.thai_word2en = {}
+        self.thai_word_meta = {}
+        self.thai_word_tokens_path = thai_word_tokens_path
+        thai_word_str = []
+        if thai_word_tokens_path:
+            with open(thai_word_tokens_path, 'r', encoding='utf-8') as f:
+                _spec = json.load(f)
+            self.thai_word_meta = _spec.get('_meta', {}) if isinstance(_spec, dict) else {}
+            _spec = _spec.get('words', _spec)
+            # Drop bookkeeping keys so a file written without the 'words' wrapper cannot
+            # smuggle '_meta' in as if it were a Thai word.
+            _spec = {k: v for k, v in _spec.items() if not k.startswith('_')}
+            # longest-first: Thai has no spaces, so HF's added-token trie must be able to
+            # prefer 'กลางวัน' over 'กลาง' when both are present.
+            thai_word_str = sorted(_spec.keys(), key=len, reverse=True)
+            # accept both {th: "en"} and the older {th: {"en": ...}} shape
+            self.thai_word2en = {w: (_spec[w]['en'] if isinstance(_spec[w], dict) else _spec[w])
+                                 for w in thai_word_str}
+            bad = [w for w, e in self.thai_word2en.items() if not isinstance(e, str) or not e.strip()]
+            assert not bad, f'Thai words with a missing/empty English donor: {bad}'
+        self.thai_word_str = thai_word_str
+        self.tokenizer.add_tokens(all_motion_str + all_hand_str + all_rhand_str + thai_word_str)
         self.lang_token_ids = list(map(self.tokenizer.convert_tokens_to_ids, ['en_XX', 'zh_CN', 'de_DE', 'th_TH', '<mask>']+new_lang_token)) #[MODIFIED]: Add thai token
 
         # set map ids
         with open(os.path.join(model_path, 'map_ids.pkl'), 'rb') as f:
             self.tok_id_to_emb_id = pickle.load(f)
         idx = len(self.tok_id_to_emb_id)
-        for tok in [*new_lang_token, *all_motion_str, *all_hand_str, *all_rhand_str]:
+        # [MODIFIED] Thai words go LAST so every pre-existing embedding id keeps its value;
+        # only rows >= the old len_token are new.
+        for tok in [*new_lang_token, *all_motion_str, *all_hand_str, *all_rhand_str, *thai_word_str]:
             tok_id = self.tokenizer.convert_tokens_to_ids(tok)
             self.tok_id_to_emb_id[tok_id] = idx
             idx += 1
+        # A collision would silently shrink the map and leave a hole in the embedding table.
+        assert len(self.tok_id_to_emb_id) == idx, \
+            f'duplicate token id while assigning embedding ids ({len(self.tok_id_to_emb_id)} != {idx})'
         self.emb_id_to_tok_id = {v:k for k,v in self.tok_id_to_emb_id.items()}
         self.eos_idx = self.tok_id_to_emb_id[self.tokenizer.convert_tokens_to_ids('</s>')]
 
         # restrict output vocab
         tokenizer_with_prefix_space = MBartTokenizer.from_pretrained(model_path, add_prefix_space=True, legacy=True)
         tokenizer_with_prefix_space.add_tokens(new_lang_token, special_tokens=True)
-        tokenizer_with_prefix_space.add_tokens(all_motion_str + all_hand_str + all_rhand_str)
+        # [MODIFIED] Thai words must be added here too. This tokenizer's vocab is what the
+        # ids_remove_* sets below are built from; if the Thai ids are missing they never get
+        # masked out of the motion heads and the model can emit Thai words as motion.
+        tokenizer_with_prefix_space.add_tokens(all_motion_str + all_hand_str + all_rhand_str + thai_word_str)
         all_motion_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_motion_str)
         all_hand_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_hand_str)
         all_rhand_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_rhand_str)
@@ -181,6 +238,14 @@ class Mbart_Based_MLM(nn.Module):
                                             ids_remove_rhand=ids_remove_rhand,
                                             eos_idx=self.eos_idx
                                         )
+        # [MODIFIED] Must run AFTER the LM is built: resize_token_embeddings() creates the new
+        # rows (mean-resized noise), this overwrites them with translation-derived vectors.
+        if self.thai_word_str and self.thai_word_init != 'none':
+            self.init_thai_embeddings_from_english()
+        elif self.thai_word_str:
+            print(f'[thai-init] mode=none | {len(self.thai_word_str)} Thai rows left as '
+                  f'resize_token_embeddings() made them (all ~= the vocab centroid)')
+
         self.lm_type = 'encdec'
         # elif model_type == "gpt2":
         #     self.language_model = GPT2LMHeadModel.from_pretrained(model_path)
@@ -208,6 +273,69 @@ class Mbart_Based_MLM(nn.Module):
             self.num_kws_per_sen = 0
 
 
+    def thai_donor_pairing(self):
+        """[MODIFIED] Which English donor each Thai word is initialised from.
+
+        'dict' uses the real translation. 'shuffled' uses a seeded DERANGEMENT: every Thai
+        word gets someone else's donor, never its own. A plain shuffle would leave roughly
+        one word correctly paired by chance, which quietly contaminates the control arm.
+        """
+        if self.thai_word_init == 'dict':
+            return dict(self.thai_word2en)
+        words = list(self.thai_word2en)
+        donors = [self.thai_word2en[w] for w in words]
+        rng = random.Random(self.thai_word_init_seed)
+        for _ in range(1000):
+            perm = donors[:]
+            rng.shuffle(perm)
+            if all(p != d for p, d in zip(perm, donors)):
+                return dict(zip(words, perm))
+        raise RuntimeError('could not build a derangement of the Thai donors')
+
+    def init_thai_embeddings_from_english(self):
+        """[MODIFIED] Seed each new Thai whole-word row from an English donor row.
+
+        The checkpoint is vocab-pruned, so a raw mBART token id (0-250026) is NOT a row
+        index into the 19k embedding matrix. Both sides must be routed through
+        tok_id_to_emb_id or we would copy from an unrelated row.
+        """
+        pairing = self.thai_donor_pairing()
+        emb_weight = self.language_model.main_lm.get_input_embeddings().weight
+        n_copy = 0
+        averaged, skipped = [], []
+        with torch.no_grad():
+            for th, en in pairing.items():
+                th_row = self.tok_id_to_emb_id[self.tokenizer.convert_tokens_to_ids(th)]
+                en_ids = self.tokenizer(en, add_special_tokens=False).input_ids
+                rows = [self.tok_id_to_emb_id[i] for i in en_ids if i in self.tok_id_to_emb_id]
+                if not rows:
+                    # donor itself was pruned away; leave the mean-resized row alone
+                    skipped.append(f'{th}->{en}')
+                    continue
+                if len(rows) == 1:
+                    emb_weight[th_row] = emb_weight[rows[0]].clone()
+                    n_copy += 1
+                else:
+                    emb_weight[th_row] = emb_weight[rows].mean(0)
+                    averaged.append(f'{th}<-{en}{self.tokenizer.convert_ids_to_tokens(en_ids)}')
+        # Everything below is derived, so it is printed rather than stored in the json:
+        # a value written down next to the data is a value that can silently go stale.
+        src = self.thai_word_meta.get('source_corpus', 'unspecified')
+        mode = self.thai_word_init
+        tag = f'{mode} (seed={self.thai_word_init_seed})' if mode == 'shuffled' else mode
+        print(f'[thai-init] mode={tag} | {len(self.thai_word2en)} Thai tokens from '
+              f'{self.thai_word_tokens_path} (donor corpus: {src})')
+        if mode == 'shuffled':
+            n_correct = sum(pairing[w] == self.thai_word2en[w] for w in pairing)
+            sample = ', '.join(f'{w}<-{pairing[w]}' for w in list(pairing)[:4])
+            print(f'[thai-init]   CONTROL ARM: donors deranged, {n_correct}/{len(pairing)} '
+                  f'pairings are correct (must be 0). e.g. {sample}')
+        print(f'[thai-init]   copied={n_copy} averaged={len(averaged)} skipped={len(skipped)}')
+        if averaged:
+            print(f'[thai-init]   averaged (donor is >1 subword): {", ".join(averaged)}')
+        if skipped:
+            print(f'[thai-init][WARN] donors missing from the pruned vocab: {skipped}')
+
     def map_ids(self, input_ids: torch.Tensor, direction: str ='token_to_emb'):
         assert direction in ['token_to_emb', 'emb_to_token']
         if direction == 'token_to_emb':
@@ -216,13 +344,36 @@ class Mbart_Based_MLM(nn.Module):
             mapping = self.emb_id_to_tok_id
 
         B, N = input_ids.shape
-        unk_idx = self.tokenizer.convert_tokens_to_ids('<unk>')
+        unk_tok_id = self.tokenizer.convert_tokens_to_ids('<unk>')
+        # [MODIFIED] The fallback has to live in the TARGET id space. It used to write the
+        # raw token id into embedding space; that only worked because <unk> happens to map
+        # to row 3, and would corrupt silently under any remap that moves it.
+        unk_idx = (self.tok_id_to_emb_id.get(unk_tok_id, unk_tok_id)
+                   if direction == 'token_to_emb' else unk_tok_id)
+        n_total = n_miss = 0
         for i in range(B):
             for j in range(N):
-                try:
-                    input_ids[i][j] = mapping[input_ids[i][j].item()]
-                except:
+                v = input_ids[i][j].item()
+                # [MODIFIED] -100 is the loss-ignore marker written by the caller just above.
+                # The old bare `except` turned it into <unk>, so padding was never actually
+                # ignored. It must pass through untouched.
+                if v == -100:
+                    continue
+                n_total += 1
+                if v in mapping:
+                    input_ids[i][j] = mapping[v]
+                else:
                     input_ids[i][j] = unk_idx
+                    n_miss += 1
+        # [MODIFIED] This failure used to be completely silent, which is why a 93%-unmapped
+        # Thai corpus trained for weeks without anyone noticing.
+        if n_total and (n_miss / n_total) > self.map_ids_unk_warn_ratio:
+            self._unk_warned += 1
+            if self._unk_warned <= 10:
+                print(f'[map_ids][WARN] {n_miss}/{n_total} ids ({100 * n_miss / n_total:.1f}%) '
+                      f'missing from the {direction} map and forced to <unk>. '
+                      f'The vocab probably does not cover this language.')
+        return n_miss, n_total
 
 
     def get_kw_strings(self, name, src):

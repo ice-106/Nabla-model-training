@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "purpose": "Thai whole-word token -> English donor word, for the vocab-transfer (dict-init) baseline",
+    "source_corpus": "Thai_Hand4WholePP_EN",
+    "status": "31-word list approved 2026-07-26",
+    "evidence": "not stored here on purpose - run `python scripts/derive_thai_word2en.py` to regenerate it, or `--corpus _ENMT` to see what the other translation set would suggest",
+    "validation": "scripts/verify_thai_tokens.py checks this file every run (donors resolvable, no duplicates, no empties)"
+  },
+  "words": {
+    "ฉัน": "I",
+    "เขา": "he",
+    "พ่อ": "dad",
+    "แม่": "mom",
+    "ยาย": "grandma",
+    "กิน": "eat",
+    "ข้าว": "rice",
+    "ดู": "watch",
+    "ทีวี": "TV",
+    "นอน": "sleep",
+    "หลับ": "asleep",
+    "เดิน": "walk",
+    "เล่น": "play",
+    "วิ่ง": "run",
+    "ไป": "go",
+    "มี": "have",
+    "กำลัง": "currently",
+    "บ้าน": "home",
+    "โรงเรียน": "school",
+    "ร้าน": "shop",
+    "อาหาร": "food",
+    "สวน": "garden",
+    "สาธารณะ": "public",
+    "ปากกา": "pen",
+    "เช้า": "morning",
+    "กลางวัน": "noon",
+    "เย็น": "evening",
+    "ใน": "in",
+    "ตอน": "during",
+    "ที่": "at",
+    "กับ": "with"
+  }
+}

@@ -10,3 +10,8 @@ params:
   name2kws_path: ${oc.select:KWS.NAME2KWS_PATH,'scripts/name2kws_{split}.json'}  # quote default: OmegaConf 2.3 rejects unquoted '{' in an interpolation
   word2code_path: ${oc.select:KWS.WORD2CODE_PATH,scripts/word2code.json}
   debug_kws: ${oc.select:KWS.DEBUG,false}
+  # [MODIFIED] Thai whole-word tokens. Default '' keeps every existing experiment byte-identical.
+  thai_word_tokens_path: ${oc.select:THAI_WORDS.PATH,''}
+  thai_word_init: ${oc.select:THAI_WORDS.INIT,dict}          # dict | shuffled | none
+  thai_word_init_seed: ${oc.select:THAI_WORDS.SEED,0}        # only used by 'shuffled'
+  map_ids_unk_warn_ratio: ${oc.select:THAI_WORDS.UNK_WARN_RATIO,0.05}

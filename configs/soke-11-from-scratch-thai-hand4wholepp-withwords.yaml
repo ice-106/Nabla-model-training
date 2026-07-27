@@ -76,6 +76,22 @@ DATASET:
     STD_TEXT: False
   CODE_PATH: TOKENS_Thai_Hand4WholePP_WithWords_From_Scratch
 
+# [MODIFIED] Vocab-transfer experiment: 31 Thai whole-word tokens with real embedding rows.
+#
+#   INIT: dict      -> donor is the word's real English translation      (PROPOSED METHOD)
+#   INIT: shuffled  -> donor is a seeded derangement, every pairing wrong (CONTROL ARM)
+#   INIT: none      -> rows left as HF made them (all ~= the vocab centroid)
+#
+# dict - shuffled is what isolates the value of the translation prior: both arms use the same
+# 31 donor vectors with the same norms and spread, so the only thing that differs is whether
+# the pairing is correct. Change SEED (and the experiment NAME) to repeat with another
+# derangement. Remember to switch NAME/TEST.CHECKPOINTS when switching arms.
+THAI_WORDS:
+  PATH: scripts/thai_word2en.json   # derived from Thai_Hand4WholePP_EN; swap for an _ENMT-derived file to compare
+  INIT: shuffled
+  SEED: 20260727
+  UNK_WARN_RATIO: 0.05
+
 METRIC:
   TYPE: ['TM2TMetrics']
   # [MODIFIED]: To enable DTW-PA-JPE
