@@ -8,6 +8,7 @@ from torch import Tensor, nn
 from torch.distributions.distribution import Distribution
 from transformers import MBartTokenizer
 import tokenizers
+import sentencepiece as spm
 import random
 from typing import Optional
 from .tools.token_emb import NewTokenEmb
@@ -208,6 +209,15 @@ class Mbart_Based_MLM(nn.Module):
             self.num_kws_per_sen = 0
 
 
+    def _normalize_source_texts(self, texts: List[str]) -> List[str]:
+        """Apply the tokenizer model's own charsmap before source encoding."""
+        if not hasattr(self.tokenizer, 'sp_model'):
+            self.tokenizer.sp_model = spm.SentencePieceProcessor(
+                model_file=self.tokenizer.vocab_file
+            )
+        return [self.tokenizer.sp_model.normalize(text) for text in texts]
+
+
     def map_ids(self, input_ids: torch.Tensor, direction: str ='token_to_emb'):
         assert direction in ['token_to_emb', 'emb_to_token']
         if direction == 'token_to_emb':
@@ -343,6 +353,7 @@ class Mbart_Based_MLM(nn.Module):
 
         # print(texts)
         # train inputs
+        inputs = self._normalize_source_texts(inputs)
         source_encoding = self.tokenizer(inputs,
                                          padding='longest',
                                          max_length=self.max_length,
@@ -506,6 +517,7 @@ class Mbart_Based_MLM(nn.Module):
                     s = src[i] if src is not None else None
                     print(f'  [{i}] name={n} src={s} | {p}')
 
+        texts = self._normalize_source_texts(texts)
         source_encoding = self.tokenizer(texts,
                                          padding='longest',
                                          max_length=self.max_length,
