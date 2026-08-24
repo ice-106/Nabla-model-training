@@ -87,7 +87,7 @@ model:
   params:
     condition: 'text'
     task: 't2m'
-    lm: ${lm.mbart_h2s_csl_phoenix}
+    lm: ${lm.mbart_h2s_csl_phoenix_thai}
     motion_vae: ${vq.re96}
     hand_vae_cfg: ${vq.hand192}
     rhand_vae_cfg: ${vq.hand192}

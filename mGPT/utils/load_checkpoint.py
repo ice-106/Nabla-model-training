@@ -2,6 +2,50 @@ import torch
 from mGPT.utils.misc import neq_load_customized
 
 
+_VOCAB_PARAMETER_SUFFIXES = (
+    "final_logits_bias",
+    "model.shared.weight",
+    "model.encoder.embed_tokens.weight",
+    "model.decoder.embed_tokens.weight",
+    "lm_head.weight",
+)
+
+
+def _vocab_size(tensor, key):
+    return tensor.shape[-1] if key.endswith("final_logits_bias") else tensor.shape[0]
+
+
+def _validate_checkpoint_vocab(model, state_dict):
+    """Fail clearly when an experiment selects the wrong historical LM variant."""
+    model_state = model.state_dict()
+    mismatches = []
+    for key, checkpoint_tensor in state_dict.items():
+        if not key.endswith(_VOCAB_PARAMETER_SUFFIXES) or key not in model_state:
+            continue
+        model_tensor = model_state[key]
+        if checkpoint_tensor.shape != model_tensor.shape:
+            mismatches.append(
+                (key, _vocab_size(checkpoint_tensor, key), _vocab_size(model_tensor, key))
+            )
+
+    if not mismatches:
+        return
+
+    checkpoint_sizes = sorted({item[1] for item in mismatches})
+    model_sizes = sorted({item[2] for item in mismatches})
+    details = ", ".join(
+        f"{key}: checkpoint={checkpoint_size}, model={model_size}"
+        for key, checkpoint_size, model_size in mismatches
+    )
+    raise RuntimeError(
+        "Checkpoint vocabulary is incompatible with the selected LM variant. "
+        f"Checkpoint vocab size(s): {checkpoint_sizes}; model vocab size(s): {model_sizes}. "
+        "Use lm.mbart_h2s_csl_phoenix for the historical three-language checkpoint "
+        "or lm.mbart_h2s_csl_phoenix_thai for Thai/four-language checkpoints. "
+        f"Mismatched tensors: {details}"
+    )
+
+
 def load_pretrained(cfg, model, logger=None, phase="train"):    
     if phase == "train":
         ckpt_path = cfg.TRAIN.PRETRAINED
@@ -14,8 +58,8 @@ def load_pretrained(cfg, model, logger=None, phase="train"):
     # [MODIFIED] To be able to load from given checkpoint
     state_dict = torch.load(ckpt_path, map_location="cpu", weights_only=False)["state_dict"]
 
-    # TODO: Implement shape resizing to align the model without thai vocab to model with thai vocab
 
+    _validate_checkpoint_vocab(model, state_dict)
     model.load_state_dict(state_dict, strict=False)
     return model
 

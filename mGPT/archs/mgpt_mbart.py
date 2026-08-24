@@ -100,6 +100,9 @@ class Mbart_Based_MLM(nn.Module):
         name2kws_path: str = 'scripts/name2kws_{split}.json',
         word2code_path: str = 'scripts/word2code.json',
         debug_kws: bool = False,
+        # The original three-language checkpoint predates the th_TH source token.
+        # Keep this explicit so checkpoint vocabulary layouts are reproducible.
+        include_thai_source_token: bool = False,
         # [MODIFIED] Thai whole-word tokens (vocab-transfer / dict-init baseline).
         # Empty path = feature off, so every non-Thai config keeps its exact old vocab size
         # and stays checkpoint-compatible.
@@ -139,10 +142,18 @@ class Mbart_Based_MLM(nn.Module):
 
         # Add motion tokens
         self.tokenizer = MBartTokenizer.from_pretrained(model_path, legacy=True)
+        self.include_thai_source_token = include_thai_source_token
         if model_type == 'mbart_multi_part':
-            new_lang_token = ['th_TH', 'en_ASL', 'en_ASL_lhand', 'en_ASL_rhand', 'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand', 'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand', 'th_THS', 'th_THS_lhand', 'th_THS_rhand'] #[MODIFIED]: Add th_TH (not in mBart-cc25) + thai sign tokens
+            new_lang_token = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand',
+                              'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand',
+                              'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand',
+                              'th_THS', 'th_THS_lhand', 'th_THS_rhand']
         else:
-            new_lang_token = ['th_TH', 'en_ASL', 'zh_CSL', 'de_DGS', 'th_THS'] #[MODIFIED]: Add th_TH (not in mBart-cc25) + thai sign token
+            new_lang_token = ['en_ASL', 'zh_CSL', 'de_DGS', 'th_THS']
+        # th_TH was prepended when four-language support was introduced. Its position is
+        # part of the checkpoint format, so do not append it or infer it at load time.
+        if include_thai_source_token:
+            new_lang_token.insert(0, 'th_TH')
         self.tokenizer.add_tokens(new_lang_token, special_tokens=True)
         all_motion_str = [f'<motion_id_{i}>' for i in range(self.m_codebook_size + 3)]
         all_hand_str = [f'<hand_id_{i}>' for i in range(self.hand_codebook_size + 3)] if hand_codebook_size>0 else []
