@@ -1,7 +1,7 @@
 # Checklist
 # 1. Change Name
 # 2. Disable Debug mode (Two places)
-# 3. Verify dataset name 
+# 3. Verify dataset name
 # 4. Verify RESUME whether you want to continue or not
 # 5. Verify Wandb Name
 # 6. Set Epcoh to original (150)
@@ -31,7 +31,7 @@ TRAIN:
       lr: 2e-4 # Originally, 2e-4
       betas: [0.9, 0.99]
       weight_decay: 0.0
-  
+
   LR_SCHEDULER:
     target: CosineAnnealingLR
     params:
@@ -101,7 +101,7 @@ LOGGER:
       project: SLG-Lanta-3-Dataset
       # id: "ygajm5v9"
       # resume: "must"
-      
+
 
 # Restore the keyword motion-token conditioning used automatically when the
 # SOKE-3-Dataset-One-Go checkpoint was trained (before the KWS toggle existed).
