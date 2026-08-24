@@ -139,6 +139,10 @@ def parse_args(phase="train"):
                            nargs="+",
                            required=False,
                            help="clip/video ID(s), aligned one-to-one with --text")
+        group.add_argument("--manifest",
+                           type=str,
+                           required=False,
+                           help="JSON manifest containing aligned id, text, and src records")
         group.add_argument("--src",
                            type=str,
                            required=False,
@@ -233,8 +237,21 @@ def parse_args(phase="train"):
             # [MODIFIED]: Fixed attribute error
             # Inference mode configuration
             cfg.INFER = params.infer if hasattr(params, 'infer') else False
-            cfg.INFER_TEXT = params.text if hasattr(params, 'text') else None
-            cfg.INFER_NAME = params.name if hasattr(params, 'name') else None
+            if params.manifest and (params.text is not None or params.name is not None):
+                parser.error("--manifest cannot be combined with --text or --name")
+            if params.manifest:
+                if not params.src:
+                    parser.error("--manifest requires --src")
+                from mGPT.utils.inference_manifest import load_inference_manifest
+                try:
+                    infer_text, infer_name = load_inference_manifest(params.manifest, params.src)
+                except (OSError, ValueError) as exc:
+                    parser.error(str(exc))
+            else:
+                infer_text, infer_name = params.text, params.name
+            cfg.INFER_TEXT = infer_text
+            cfg.INFER_NAME = infer_name
+            cfg.INFER_MANIFEST = params.manifest
             cfg.INFER_SRC = params.src if hasattr(params, 'src') else None
             cfg.INFER_OUTPUT_DIR = params.output_dir if hasattr(params, 'output_dir') else "./results/infer_output"
             cfg.INFER_FPS = params.fps if hasattr(params, 'fps') else 20

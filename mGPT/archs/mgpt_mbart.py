@@ -25,6 +25,7 @@ def get_tokens_as_list(tokenizer, word_list):
     return tokens_list
 
 
+
 def correct_lang_token(tokenizer, input_ids: torch.Tensor, token_length: torch.Tensor, data_src: List[str], part: str, target: bool, model_type: str='mbart_multi'):
     #assign correct language tokens, e.g., en_XX, zh_CN, en_ASL, zh_CSL
     B = input_ids.shape[0]
@@ -75,6 +76,19 @@ def make_decoder_input_ids(tokenizer, device, data_src, part, model_type='mbart_
     return decoder_input_ids
 
 
+
+def get_new_lang_tokens(model_type: str, include_thai_source_token: bool) -> List[str]:
+    """Return language tokens in their checkpoint-defining insertion order."""
+    if model_type == 'mbart_multi_part':
+        tokens = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand',
+                  'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand',
+                  'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand',
+                  'th_THS', 'th_THS_lhand', 'th_THS_rhand']
+    else:
+        tokens = ['en_ASL', 'zh_CSL', 'de_DGS', 'th_THS']
+    if include_thai_source_token:
+        tokens.insert(0, 'th_TH')
+    return tokens
 class Mbart_Based_MLM(nn.Module):
 
     def __init__(
@@ -143,17 +157,7 @@ class Mbart_Based_MLM(nn.Module):
         # Add motion tokens
         self.tokenizer = MBartTokenizer.from_pretrained(model_path, legacy=True)
         self.include_thai_source_token = include_thai_source_token
-        if model_type == 'mbart_multi_part':
-            new_lang_token = ['en_ASL', 'en_ASL_lhand', 'en_ASL_rhand',
-                              'zh_CSL', 'zh_CSL_lhand', 'zh_CSL_rhand',
-                              'de_DGS', 'de_DGS_lhand', 'de_DGS_rhand',
-                              'th_THS', 'th_THS_lhand', 'th_THS_rhand']
-        else:
-            new_lang_token = ['en_ASL', 'zh_CSL', 'de_DGS', 'th_THS']
-        # th_TH was prepended when four-language support was introduced. Its position is
-        # part of the checkpoint format, so do not append it or infer it at load time.
-        if include_thai_source_token:
-            new_lang_token.insert(0, 'th_TH')
+        new_lang_token = get_new_lang_tokens(model_type, include_thai_source_token)
         self.tokenizer.add_tokens(new_lang_token, special_tokens=True)
         all_motion_str = [f'<motion_id_{i}>' for i in range(self.m_codebook_size + 3)]
         all_hand_str = [f'<hand_id_{i}>' for i in range(self.hand_codebook_size + 3)] if hand_codebook_size>0 else []

@@ -91,22 +91,6 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
-read_field() {
-  src="$1"
-  field="$2"
-  "$PY" - "$MANIFEST" "$src" "$field" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-records = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-src, field = sys.argv[2], sys.argv[3]
-for record in records:
-    if record["src"] == src:
-        sys.stdout.buffer.write(str(record[field]).encode("utf-8") + b"\0")
-PY
-}
-
 rename_outputs() {
   src="$1"
   out_dir="$2"
@@ -141,13 +125,6 @@ PY
 
 FAILED=""
 for src in $SOURCES; do
-  mapfile -d '' -t IDS < <(read_field "$src" id)
-  mapfile -d '' -t TEXTS < <(read_field "$src" text)
-  if [ "${#IDS[@]}" -ne 5 ] || [ "${#TEXTS[@]}" -ne 5 ]; then
-    echo "ERROR: expected five IDs/texts for $src"
-    exit 1
-  fi
-
   for scen in $SCENARIOS; do
     case "$scen" in
       nokws) cfg=configs/soke-01-full-dataset.yaml ;;
@@ -172,8 +149,7 @@ for src in $SOURCES; do
         --cfg "$cfg" \
         --infer \
         --src "$src" \
-        --text "${TEXTS[@]}" \
-        --name "${IDS[@]}" \
+        --manifest "$MANIFEST" \
         --output_dir "$out_dir" \
         --fps 20 \
         --use_gpus 0 \
