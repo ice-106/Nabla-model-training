@@ -1,0 +1,155 @@
+# Checklist
+# 1. Change Name
+# 2. Disable Debug mode (Two places)
+# 3. Verify dataset name
+# 4. Verify RESUME whether you want to continue or not
+# 5. Verify Wandb Name
+# 6. Set Epcoh to original (150)
+# 7. Check the type of metric (PA, Non-PA)
+#
+# ---------------------------------------------------------------------------
+# ARM: vocab-transfer, random-init  (SECOND CONTROL / LOWER BOUND)
+#
+# Derived from soke-12-thai-wordtokens-shuffled.yaml. Everything is held
+# identical to that arm - same 119-sentence THAI_ROOT, same CODE_PATH, same
+# VAE, same optimiser, same 31 Thai whole-word tokens - EXCEPT that the 31 new
+# embedding rows are NOT seeded from any English donor at all. They are left
+# exactly as HuggingFace's resize_token_embeddings() created them: sampled from
+# a multivariate normal fitted to the pretrained embedding matrix's own mean and
+# (epsilon-scaled) covariance, i.e. 31 near-centroid random rows.
+#
+# Because CODE_PATH is reused, get_motion_code does NOT need to be re-run.
+#
+# This is the third rung of the ladder:
+#   dict     -> right donor           (translation prior + pretrained geometry)
+#   shuffled -> wrong donor           (pretrained geometry only, prior destroyed)
+#   random   -> no donor              (neither; rows must be learned from 119 sentences)
+# So shuffled minus random isolates whether merely *landing in the pretrained
+# embedding manifold* helps, and dict minus random is the full effect of the
+# vocab-transfer initialisation end to end.
+#
+# NOTE ON THE MODE NAME: the config value is INIT: none, NOT 'random'.
+# In mgpt_mbart.py, 'random' is kept alive only as a deprecated ALIAS for
+# 'shuffled' (see the 'random is the old name for shuffled' branch), so writing
+# INIT: random here would silently re-run the shuffled arm. 'none' is the mode
+# that actually skips init_thai_embeddings_from_english() and leaves the rows
+# random. SEED is therefore omitted: it is only read by 'shuffled'.
+#
+# CAVEAT: those rows are drawn per instantiation and are NOT seeded by
+# THAI_WORDS.SEED, so this arm is not bit-reproducible across runs the way dict
+# and shuffled are. Re-running it will land on different (but statistically
+# identical) starting rows.
+#
+# KNOWN LIMITATION (accepted for this run, not yet fixed):
+# _normalize_source_texts decomposes U+0E33, so 'กำลัง' becomes 'กําลัง' and no
+# longer matches its whole-word token. ~2% of pieces (33 of 119 train sentences
+# lose that one word) still fall back to <unk>. This hits the dict, shuffled and
+# random arms identically, so the comparison between them stays valid.
+# ---------------------------------------------------------------------------
+
+NAME: SOKE-Thai-WordTokens-None # Experiment names: Set new name to create new experiment!
+ACCELERATOR: 'gpu' # Devices optional: "cpu", "gpu", "tpu", "ipu", "hpu", "mps", "auto"
+NUM_NODES: 1 # Number of GPU nodes for distributed training
+DEVICE: [0] # [MODIFIED] Single RTX 5090 on chulaai-server (templates used Lanta 4-GPU [0,1,2,3])
+DEBUG: false # [MODIFIED] Disabled for full training
+
+TRAIN:
+  #---------------------------------
+  STAGE: lm_pretrain # stage "vae" , "lm_pretrain", "lm_instruct"
+  #---------------------------------
+  NUM_WORKERS: 16 # Number of workers
+  BATCH_SIZE: 1 # [MODIFIED] BS=1 per GPU
+  END_EPOCH: 500 # [MODIFIED] 500 epochs
+  RESUME: '' # Resume training from this path, folder to log and checkpoints
+  # Resume feature caused a weird behavior when new END_EPOCH > previous END_EPOCH, causing the lr to rise.
+  PRETRAINED: '' # Preatrained model path, path to check point
+  PRETRAINED_VAE: './experiments/mgpt/DETO-Train-Thai-Hand4WholePP/checkpoints/last.ckpt' # Vae model path
+
+  OPTIM:
+    target: AdamW
+    params:
+      lr: 2e-4 # Originally, 2e-4
+      betas: [0.9, 0.99]
+      weight_decay: 0.0
+
+  LR_SCHEDULER:
+    target: CosineAnnealingLR
+    params:
+      T_max: ${TRAIN.END_EPOCH}  #${eval:${LOGGER.VAL_EVERY_STEPS} * 100}
+      eta_min: 1e-5 # [MODIFIED] Higher minimum LR to avoid stalling late in training
+
+# Evaluating Configuration
+EVAL:
+  BATCH_SIZE: 1 # [MODIFIED] Reduced to avoid OOM during SMPLX validation
+  SPLIT: val
+
+TEST:
+  CHECKPOINTS: "./experiments/mgpt/SOKE-Thai-WordTokens-None/checkpoints/last.ckpt"
+  SPLIT: test # [MODIFIED] Originally, this is test
+  BATCH_SIZE: 8 # training Batch size
+  REPLICATION_TIMES: 1 # Number of times to replicate the test
+  SAVE_PREDICTIONS: True # set to save prediction
+
+DATASET:
+  target: mGPT.data.H2S.H2SDataModule
+  H2S:
+    DATASET_NAME: thai
+    DEBUG: false # [MODIFIED] Full training, not debug
+    NUM_SAMPLE:   # [MODIFIED] Use all samples
+    ROOT: ../data/How2Sign
+    CSL_ROOT: ../data/CSL-Daily
+    PHOENIX_ROOT: ../data/Phoenix_2014T
+    THAI_ROOT: ../data/Thai_Hand4WholePP   # same 119 sentences as soke-10
+    MEAN_PATH: ../data/CSL-Daily/mean.pt
+    STD_PATH: ../data/CSL-Daily/std.pt
+    MAX_MOTION_LEN: 400
+    MIN_MOTION_LEN: 40
+    MAX_TEXT_LEN: 40
+    PICK_ONE_TEXT: True
+    FRAME_RATE: 20.0
+    UNIT_LEN: 4
+    STD_TEXT: False
+  CODE_PATH: TOKENS_Thai_Hand4WholePP_From_Scratch   # reused from soke-10, already built
+
+# [MODIFIED] The only thing that differs from the shuffled arm is INIT.
+# The same thai_word2en.json is still loaded: it is what defines WHICH 31 Thai
+# words become tokens. Under INIT: none its English side is simply never used,
+# so the token set stays byte-identical across all three arms and only the
+# initialisation differs.
+# UNK_WARN_RATIO is deliberately low: the known 'กำลัง' gap sits at ~2%, and a
+# defect that trains silently is exactly what this whole fix was about. The
+# warning does not change training, it only makes the gap visible in the log.
+THAI_WORDS:
+  PATH: scripts/thai_word2en.json
+  INIT: none     # dict | shuffled | none   ('random' is an alias for shuffled - do not use it here)
+  UNK_WARN_RATIO: 0.005
+
+METRIC:
+  TYPE: ['TM2TMetrics']
+  # [MODIFIED]: To enable DTW-PA-JPE
+  DTW_ALIGN_MODE: 'jpe'  # Options: 'jpe' (align to root joint) or 'pa' (Procrustes alignment, DTW-PA-JPE)
+
+LOSS:
+  LAMBDA_FEATURE: 1.0
+  LAMBDA_VELOCITY: 0.0
+  LAMBDA_COMMIT: 0.02
+  LAMBDA_CLS: 1.0
+  ABLATION:
+    RECONS_LOSS: 'l1_smooth'
+
+model:
+  target: mGPT.models.mgpt.MotionGPT
+  params:
+    condition: 'text'
+    task: 't2m'
+    lm: ${lm.mbart_h2s_csl_phoenix}
+    motion_vae: ${vq.re96}
+    hand_vae_cfg: ${vq.hand192}
+    rhand_vae_cfg: ${vq.hand192}
+
+LOGGER:
+  TYPE: ['wandb']
+  VAL_EVERY_STEPS: 10 # [MODIFIED] Validate every 10 epochs to reduce overhead
+  WANDB:
+    params:
+      project: SLG-ChulaAI-Thai-WordTokens

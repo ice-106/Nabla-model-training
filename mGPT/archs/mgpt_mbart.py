@@ -111,6 +111,11 @@ class Mbart_Based_MLM(nn.Module):
         # 'none'     = leave the rows exactly as resize_token_embeddings() made them.
         thai_word_init: str = 'dict',
         thai_word_init_seed: int = 0,
+        # SentencePiece's normalizer decomposes U+0E33 (ำ -> ํ + า) before tokenizing, so the
+        # composed form written in the json never matches the text the model actually sees.
+        # True registers the normalised surface form as well. Set False to reproduce runs
+        # made before this was added (it changes the vocab size, so checkpoints differ).
+        thai_word_normalized_variants: bool = True,
         map_ids_unk_warn_ratio: float = 0.05,
         **kwargs,
     ) -> None:
@@ -160,6 +165,7 @@ class Mbart_Based_MLM(nn.Module):
         self._unk_warned = 0
         self.thai_word2en = {}
         self.thai_word_meta = {}
+        self.thai_word_variants = {}   # normalised surface form -> canonical word
         self.thai_word_tokens_path = thai_word_tokens_path
         thai_word_str = []
         if thai_word_tokens_path:
@@ -176,10 +182,26 @@ class Mbart_Based_MLM(nn.Module):
             # accept both {th: "en"} and the older {th: {"en": ...}} shape
             self.thai_word2en = {w: (_spec[w]['en'] if isinstance(_spec[w], dict) else _spec[w])
                                  for w in thai_word_str}
+            # [MODIFIED] Register the normalised surface form too. _normalize_source_texts runs
+            # the SentencePiece charsmap over every source string before tokenizing, and that
+            # decomposes U+0E33, so 'กำลัง' reaches the tokenizer as 'กําลัง' and the composed
+            # token never matches. Variants are appended AFTER the canonical words so the
+            # original rows keep the embedding ids they already had.
+            if thai_word_normalized_variants:
+                _sp = spm.SentencePieceProcessor(model_file=self.tokenizer.vocab_file)
+                for w in thai_word_str:
+                    # .lstrip: normalize() also prepends the SentencePiece dummy prefix
+                    n = _sp.normalize(w).lstrip('▁')
+                    if n and n != w and n not in self.thai_word_variants and n not in self.thai_word2en:
+                        self.thai_word_variants[n] = w
             bad = [w for w, e in self.thai_word2en.items() if not isinstance(e, str) or not e.strip()]
             assert not bad, f'Thai words with a missing/empty English donor: {bad}'
         self.thai_word_str = thai_word_str
-        self.tokenizer.add_tokens(all_motion_str + all_hand_str + all_rhand_str + thai_word_str)
+        # Variants last, and longest-first within themselves, for the same trie reason.
+        thai_variant_str = sorted(self.thai_word_variants, key=len, reverse=True)
+        self.thai_variant_str = thai_variant_str
+        self.tokenizer.add_tokens(all_motion_str + all_hand_str + all_rhand_str
+                                  + thai_word_str + thai_variant_str)
         self.lang_token_ids = list(map(self.tokenizer.convert_tokens_to_ids, ['en_XX', 'zh_CN', 'de_DE', 'th_TH', '<mask>']+new_lang_token)) #[MODIFIED]: Add thai token
 
         # set map ids
@@ -188,7 +210,8 @@ class Mbart_Based_MLM(nn.Module):
         idx = len(self.tok_id_to_emb_id)
         # [MODIFIED] Thai words go LAST so every pre-existing embedding id keeps its value;
         # only rows >= the old len_token are new.
-        for tok in [*new_lang_token, *all_motion_str, *all_hand_str, *all_rhand_str, *thai_word_str]:
+        for tok in [*new_lang_token, *all_motion_str, *all_hand_str, *all_rhand_str,
+                    *thai_word_str, *thai_variant_str]:
             tok_id = self.tokenizer.convert_tokens_to_ids(tok)
             self.tok_id_to_emb_id[tok_id] = idx
             idx += 1
@@ -204,7 +227,8 @@ class Mbart_Based_MLM(nn.Module):
         # [MODIFIED] Thai words must be added here too. This tokenizer's vocab is what the
         # ids_remove_* sets below are built from; if the Thai ids are missing they never get
         # masked out of the motion heads and the model can emit Thai words as motion.
-        tokenizer_with_prefix_space.add_tokens(all_motion_str + all_hand_str + all_rhand_str + thai_word_str)
+        tokenizer_with_prefix_space.add_tokens(all_motion_str + all_hand_str + all_rhand_str
+                                               + thai_word_str + thai_variant_str)
         all_motion_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_motion_str)
         all_hand_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_hand_str)
         all_rhand_ids = get_tokens_as_list(tokenizer_with_prefix_space, all_rhand_str)
@@ -301,6 +325,11 @@ class Mbart_Based_MLM(nn.Module):
         tok_id_to_emb_id or we would copy from an unrelated row.
         """
         pairing = self.thai_donor_pairing()
+        # A normalised variant is the same word in a different encoding, so it inherits its
+        # canonical word's donor. The derangement above is still computed over the 31 real
+        # words only, so the control arm's "0 correct pairings" property is unaffected.
+        for variant, canonical in self.thai_word_variants.items():
+            pairing[variant] = pairing[canonical]
         emb_weight = self.language_model.main_lm.get_input_embeddings().weight
         n_copy = 0
         averaged, skipped = [], []
@@ -324,12 +353,15 @@ class Mbart_Based_MLM(nn.Module):
         src = self.thai_word_meta.get('source_corpus', 'unspecified')
         mode = self.thai_word_init
         tag = f'{mode} (seed={self.thai_word_init_seed})' if mode == 'shuffled' else mode
-        print(f'[thai-init] mode={tag} | {len(self.thai_word2en)} Thai tokens from '
+        var = (f' (+{len(self.thai_word_variants)} normalised variant: '
+               f'{", ".join(self.thai_word_variants)})' if self.thai_word_variants else '')
+        print(f'[thai-init] mode={tag} | {len(self.thai_word2en)} Thai tokens{var} from '
               f'{self.thai_word_tokens_path} (donor corpus: {src})')
         if mode == 'shuffled':
-            n_correct = sum(pairing[w] == self.thai_word2en[w] for w in pairing)
-            sample = ', '.join(f'{w}<-{pairing[w]}' for w in list(pairing)[:4])
-            print(f'[thai-init]   CONTROL ARM: donors deranged, {n_correct}/{len(pairing)} '
+            # over the canonical words only: variants inherit their donor by construction
+            n_correct = sum(pairing[w] == en for w, en in self.thai_word2en.items())
+            sample = ', '.join(f'{w}<-{pairing[w]}' for w in list(self.thai_word2en)[:4])
+            print(f'[thai-init]   CONTROL ARM: donors deranged, {n_correct}/{len(self.thai_word2en)} '
                   f'pairings are correct (must be 0). e.g. {sample}')
         print(f'[thai-init]   copied={n_copy} averaged={len(averaged)} skipped={len(skipped)}')
         if averaged:

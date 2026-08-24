@@ -24,8 +24,15 @@ def check(label, ok, detail=''):
         FAILED.append(label)
 
 
-def encode(model, texts):
-    """text -> the exact encoder input ids the model trains on."""
+def encode(model, texts, normalize=True):
+    """text -> the exact encoder input ids the model trains on.
+
+    normalize=True mirrors forward_encdec, which calls _normalize_source_texts before
+    tokenizing. Skipping it was a blind spot: the raw path reported 0% unmapped while the
+    real training path was losing 3% to the U+0E33 decomposition.
+    """
+    if normalize and hasattr(model, '_normalize_source_texts'):
+        texts = model._normalize_source_texts(texts)
     enc = model.tokenizer(texts, padding='longest', truncation=True,
                           max_length=model.max_length, add_special_tokens=True,
                           return_tensors='pt')
@@ -65,8 +72,10 @@ def main():
     check('_meta not mistaken for a word', '_meta' not in model.thai_word2en)
 
     print('\n=== 1. vocab / embedding table ===')
-    check('all Thai words got an embedding id', new_len == base_len + n_new,
-          f'{new_len - base_len} added for {n_new} words')
+    n_var = len(model.thai_word_variants)
+    check('all Thai words (+ normalised variants) got an embedding id',
+          new_len == base_len + n_new + n_var,
+          f'{new_len - base_len} added for {n_new} words + {n_var} variants')
     emb = model.language_model.main_lm.get_input_embeddings().weight.data
     check('embedding matrix grew to match', emb.shape[0] == new_len, str(tuple(emb.shape)))
     # Only the first len(map_ids.pkl) rows come from the checkpoint. Rows above that are
@@ -83,15 +92,24 @@ def main():
     check('no Thai row equals the <unk> row',
           not any(torch.allclose(emb[r], emb[unk_row]) for r in rows))
     check('all Thai rows distinct', len({tuple(emb[r].tolist()) for r in rows}) == len(rows))
+    # A normalised variant is the same word in another encoding, so it must start from the
+    # same vector as its canonical form - otherwise the two spellings would drift apart.
+    row_of = lambda w: model.tok_id_to_emb_id[model.tokenizer.convert_tokens_to_ids(w)]
+    check('normalised variants inherit their canonical row',
+          all(torch.equal(emb[row_of(v)], emb[row_of(c)])
+              for v, c in model.thai_word_variants.items()),
+          f'{len(model.thai_word_variants)} variants: {list(model.thai_word_variants)}')
     n_ratio = emb[rows].norm(dim=1).mean() / emb[:base_len].norm(dim=1).mean()
     check('Thai row norms match pretrained scale', 0.5 < n_ratio < 2.0, f'ratio {n_ratio:.3f}')
 
     print('\n=== 2. output vocab masking ===')
-    masked = [bool(model.language_model.mask_body[r] == float('-inf')) for r in rows]
-    check('Thai tokens masked out of the body head', all(masked),
-          f'{sum(masked)}/{len(rows)}')
+    all_rows = rows + [row_of(v) for v in model.thai_word_variants]
+    masked = [bool(model.language_model.mask_body[r] == float('-inf')) for r in all_rows]
+    check('Thai tokens (+ variants) masked out of the body head', all(masked),
+          f'{sum(masked)}/{len(all_rows)}')
 
     print('\n=== 3. text channel liveness (the metric that mattered) ===')
+    print('    measured through _normalize_source_texts, i.e. the real training path')
     for split in ['train', 'val', 'test']:
         data = pickle.load(gzip.open(f'{THAI_ROOT}/val_vid.{split}', 'rb'))
         texts = [r['text'] for r in data]
@@ -101,6 +119,20 @@ def main():
         n_unk = int((ids == unk_row).sum())
         check(f'{split}: distinct encoder inputs == unique texts',
               distinct == uniq, f'{distinct}/{uniq} distinct, {n_unk} <unk> cells')
+        # The count above is what actually reaches the encoder. A single unmapped word does
+        # not necessarily collapse a sentence, so this is checked separately.
+        check(f'{split}: no <unk> reaches the encoder', n_unk == 0, f'{n_unk} cells')
+
+    print('\n=== 3b. normalisation does not change the mapping ===')
+    # If these ever disagree, a charsmap rule is silently rewriting Thai out from under the
+    # added tokens - exactly the U+0E33 failure this check was added for.
+    for split in ['train', 'test']:
+        data = pickle.load(gzip.open(f'{THAI_ROOT}/val_vid.{split}', 'rb'))
+        texts = [r['text'] for r in data]
+        raw = int((encode(model, texts, normalize=False) == unk_row).sum())
+        nrm = int((encode(model, texts, normalize=True) == unk_row).sum())
+        check(f'{split}: raw and normalised paths agree', raw == nrm,
+              f'raw {raw} <unk>, normalised {nrm} <unk>')
 
     print('\n=== 4. -100 loss mask survives map_ids ===')
     probe = torch.tensor([[-100, model.tokenizer.convert_tokens_to_ids('</s>'), -100]])
