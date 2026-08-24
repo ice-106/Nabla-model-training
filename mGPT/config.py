@@ -134,6 +134,11 @@ def parse_args(phase="train"):
                            nargs="+",
                            required=False,
                            help="input text(s) to generate motion for")
+        group.add_argument("--name",
+                           type=str,
+                           nargs="+",
+                           required=False,
+                           help="clip/video ID(s), aligned one-to-one with --text")
         group.add_argument("--src",
                            type=str,
                            required=False,
@@ -229,6 +234,7 @@ def parse_args(phase="train"):
             # Inference mode configuration
             cfg.INFER = params.infer if hasattr(params, 'infer') else False
             cfg.INFER_TEXT = params.text if hasattr(params, 'text') else None
+            cfg.INFER_NAME = params.name if hasattr(params, 'name') else None
             cfg.INFER_SRC = params.src if hasattr(params, 'src') else None
             cfg.INFER_OUTPUT_DIR = params.output_dir if hasattr(params, 'output_dir') else "./results/infer_output"
             cfg.INFER_FPS = params.fps if hasattr(params, 'fps') else 20
