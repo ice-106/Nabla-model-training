@@ -47,6 +47,7 @@ def build_sample(npz_path):
         'key': key,
         'text': str(d['text']),
         'src': str(d['src']),
+        'run': str(d['run']) if 'run' in d else '-',
         'recorded_mode': str(d['recorded_mode']),
         'N': int(d['N']),
         'M': int(d['M']),
@@ -72,9 +73,16 @@ def build_sample(npz_path):
         s['parts'][part] = entry
 
     for track in ('ref', 'gen'):
-        meta = d.get(f'atlas_{track}')
-        jpg = npz_path.parent / f'{stem}_{track}.jpg'
+        meta = d[f'atlas_{track}'] if f'atlas_{track}' in d else None
+        # Name the atlas off the npz filename, not the sample key: with --run-tag the
+        # files are <tag>__<key>_<track>.jpg, and deriving from the key would miss them.
+        jpg = npz_path.parent / f'{npz_path.stem}_{track}.jpg'
         if meta is None or not jpg.exists():
+            # Say so. Silently dropping these yields a viewer with no thumbnails at
+            # all and no indication why.
+            print(f'  WARNING: {npz_path.name}: no {track} atlas '
+                  f'({"not in npz" if meta is None else f"missing {jpg.name}"}) '
+                  f'-- thumbnails will be absent for this sample')
             continue
         n, cols, rows, tile = (int(x) for x in meta)
         s[track] = {'n': n, 'cols': cols, 'rows': rows, 'tile': tile,
@@ -96,12 +104,13 @@ def main():
         raise SystemExit(f'no .npz in {data_dir}')
 
     samples = [build_sample(f) for f in files]
-    # group by dataset, worst-first inside each, so the interesting ones are near the top
-    samples.sort(key=lambda s: (s['src'],
+    # group by run, then dataset, worst-first inside each, so the samples most worth
+    # looking at sit near the top of the picker
+    samples.sort(key=lambda s: (s['run'], s['src'],
                                 -s['parts']['body'].get('recorded',
                                                         s['parts']['body']['jpe']['score'])))
     for s in samples:
-        print(f"  {s['src']:9s} {s['key']:45s} N={s['N']:4d} M={s['M']:4d} "
+        print(f"  {s['run']:8s} {s['src']:9s} {s['key']:45s} N={s['N']:4d} M={s['M']:4d} "
               f"body_jpe={s['parts']['body']['jpe']['score']:.4f}")
 
     tpl = Path(a.template) if a.template else \

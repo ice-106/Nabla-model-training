@@ -96,9 +96,9 @@ class Coord:
 def run_dtw(part, mode, align_idx, joints_rst, joints_ref, verts_rst, verts_ref):
     """One DTW run, mirroring mGPT/metrics/t2m.py:171-196.
 
-    t2m.py:182 hardcodes align_idx=0 for lhand while body (:173) and rhand (:193) read
-    self.dtw_align_idx. We parameterise all three so both modes are available; under a
-    'jpe' config the two are identical, so recorded scores still reconcile exactly.
+    All three parts take align_idx from the caller, matching t2m.py now that its
+    left-hand hardcode is fixed. Both modes are always computed: the run's configured
+    mode is the recorded metric, the other is the viewer's diagnostic.
     """
     if part == 'body':
         # rigid_align / the translation both run on all 144 joints; `wanted` subsets
@@ -246,11 +246,83 @@ def write_atlas(tiles, path, tile, quality, cols=16):
     return cols, rows
 
 
+# --------------------------------------------------------------------------- resume
+
+def is_complete(npz_path, want_render):
+    """True only if this sample is fully done and safe to skip.
+
+    Deliberately strict. A walltime kill or a full disk leaves a truncated .npz that
+    np.load will happily open; treating that as finished would bake a half-written
+    sample into the viewer with no error anywhere. Anything short of every expected
+    key plus both atlas files on disk is recomputed.
+    """
+    if not npz_path.exists():
+        return False
+    try:
+        with np.load(npz_path, allow_pickle=True) as d:
+            for mode, _ in MODES:
+                for part in PARTS:
+                    for pre in ('C', 'D', 'path', 'score'):
+                        if f'{pre}_{part}_{mode}' not in d:
+                            return False
+            if not want_render:
+                return True
+            for track in ('ref', 'gen'):
+                if f'atlas_{track}' not in d:
+                    return False
+                jpg = npz_path.parent / f'{npz_path.stem}_{track}.jpg'
+                if not jpg.exists() or jpg.stat().st_size == 0:
+                    return False
+    except Exception:
+        return False        # unreadable or truncated -> redo it
+    return True
+
+
 # --------------------------------------------------------------------------- samples
 
-def load_scores(results_dir):
-    p = Path(results_dir) / 'test_scores.json'
-    return json.load(open(p)) if p.exists() else {}
+def discover_ranks(results_dir, split='test'):
+    """Return the rank dirs under `results_dir`, or itself if it *is* one.
+
+    A DDP test run writes one `<split>_rank_N/` per GPU, each with its own .pkl files
+    AND its own test_scores.json covering only that rank's share. Ranking samples
+    against a single rank therefore picks that rank's extremes, not the run's -- so a
+    run dir is expanded to all of its ranks and the scores merged.
+    """
+    rd = Path(results_dir)
+    if (rd / 'test_scores.json').exists():
+        return [rd]
+    ranks = sorted(d for d in rd.glob(f'{split}_rank_*')
+                   if (d / 'test_scores.json').exists())
+    return ranks
+
+
+def load_scores(results_dir, split='test'):
+    """Merged {key: (rank_dir, rec)} across every rank, plus a printed breakdown.
+
+    DistributedSampler pads the final batch by repeating samples so all ranks get
+    equal work, so the same key legitimately appears in more than one rank. Keep the
+    first and count the rest -- letting a later rank silently overwrite would make the
+    reported score depend on glob order.
+    """
+    ranks = discover_ranks(results_dir, split)
+    if not ranks:
+        print(f'scores     : no {split}_scores.json under {results_dir}')
+        return {}
+    merged, dupes = {}, 0
+    for d in ranks:
+        rec = json.load(open(d / 'test_scores.json'))
+        new = 0
+        for k, v in rec.items():
+            if k in merged:
+                dupes += 1
+            else:
+                merged[k] = (d, v)
+                new += 1
+        print(f'  {d.name:16s} {len(rec):5d} samples ({new} new)')
+    if len(ranks) > 1 or dupes:
+        print(f'scores     : {len(merged)} unique keys across {len(ranks)} rank(s)'
+              + (f', deduped {dupes} seen in >1 rank' if dupes else ''))
+    return merged
 
 
 def src_of(rec):
@@ -262,10 +334,14 @@ def src_of(rec):
 
 
 def select_keys(scores, spec):
-    """spec like 'best,median,worst' -> those picks per dataset, ranked by body score."""
+    """spec like 'best,median,worst' -> those picks per dataset, ranked by body score.
+
+    Ranks over the merged multi-rank set, so 'worst' is the run's worst rather than
+    some single GPU's worst.
+    """
     want = [s.strip() for s in spec.split(',') if s.strip()]
     by_src = {}
-    for key, rec in scores.items():
+    for key, (_, rec) in scores.items():
         s = src_of(rec)
         v = rec.get(f'{s}_DTW_MPJPE_PA_body')
         if v is not None:
@@ -293,6 +369,15 @@ def main():
     ap.add_argument('--recorded-mode', default='jpe', choices=['jpe', 'pa'],
                     help="the run's METRIC.DTW_ALIGN_MODE; decides which computed mode "
                          'is reconciled against test_scores.json')
+    ap.add_argument('--split', default='test',
+                    help='which {split}_rank_* dirs to merge when --results-dir is a run dir')
+    ap.add_argument('--run-tag', default='',
+                    help='prefix for output files and the run label in the viewer. '
+                         'Required when several runs share one --out-dir: sample keys '
+                         'are NOT unique across runs (the Thai clips appear in both the '
+                         'Thai and the 4-dataset runs) and would overwrite each other.')
+    ap.add_argument('--force', action='store_true',
+                    help='re-extract samples that are already complete')
     ap.add_argument('--device', default='cuda:0')
     ap.add_argument('--chunk', type=int, default=32, help='SMPL-X frames per forward')
     ap.add_argument('--tile', type=int, default=128)
@@ -307,7 +392,7 @@ def main():
     rd = Path(a.results_dir)
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    scores = load_scores(rd)
+    scores = load_scores(rd, a.split)
 
     if a.keys:
         keys = [k.strip() for k in a.keys.split(',') if k.strip()]
@@ -317,24 +402,35 @@ def main():
         keys = select_keys(scores, a.select)
     else:
         ap.error('one of --keys / --keys-file / --select is required')
-    print(f'samples    : {len(keys)}')
+    tag = a.run_tag.strip()
+    stem_of = (lambda k: f'{tag}__{k.split("/")[-1]}') if tag else \
+              (lambda k: k.split('/')[-1])
+    print(f'samples    : {len(keys)}' + (f'   run-tag: {tag}' if tag else ''))
 
     mean, std = load_mean_std(a.mean_path, a.std_path)
     coord = Coord(mean, std, a.device, a.chunk)
     crop_idx = upper_body_vertex_idx()
     renderer = None if a.no_render else Renderer(a.tile)
 
-    failures = []
+    failures, skipped, done = [], 0, 0
     for n, key in enumerate(keys, 1):
+        stem = stem_of(key)
+        # Check completeness BEFORE the SMPL-X forward -- checking after would run the
+        # expensive part anyway and make the skip worthless.
+        if not a.force and is_complete(out / f'{stem}.npz', renderer is not None):
+            print(f'[{n}/{len(keys)}] {key}: SKIP (complete)')
+            skipped += 1
+            continue
+
+        rank_dir, rec = scores.get(key, (rd, {}))
         # phoenix keys embed the split ('test/25April_...') but base.py:64 writes the
         # pkl as key.split('/')[-1].
-        pkl = rd / f'{key.split("/")[-1]}.pkl'
+        pkl = rank_dir / f'{key.split("/")[-1]}.pkl'
         if not pkl.exists():
             print(f'[{n}/{len(keys)}] {key}: MISSING {pkl}')
             failures.append(key)
             continue
         d = pickle.load(open(pkl, 'rb'))
-        rec = scores.get(key, {})
         src = src_of(rec) if rec else 'unknown'
 
         t0 = time.time()
@@ -347,7 +443,7 @@ def main():
               f'smplx {time.time()-t0:.1f}s')
 
         payload = {'key': key, 'text': d['text'], 'src': src, 'N': N, 'M': M,
-                   'recorded_mode': a.recorded_mode}
+                   'recorded_mode': a.recorded_mode, 'run': tag or '-'}
         ok = True
         for mode, align_idx in MODES:
             for part in PARTS:
@@ -385,16 +481,18 @@ def main():
             centre, half, depth = fit_camera([v_ref.numpy(), v_rst.numpy()], crop_idx)
             for track, verts in (('ref', v_ref), ('gen', v_rst)):
                 tiles = list(renderer.frames(verts, centre, half, depth))
-                cols, rows = write_atlas(tiles, out / f'{key.split("/")[-1]}_{track}.jpg',
+                cols, rows = write_atlas(tiles, out / f'{stem}_{track}.jpg',
                                          a.tile, a.jpeg_quality)
                 payload[f'atlas_{track}'] = np.array([len(tiles), cols, rows, a.tile])
             print(f'    render {2*(N+M)//2} frames  {time.time()-t2:.1f}s')
 
-        np.savez_compressed(out / f'{key.split("/")[-1]}.npz', **payload)
+        np.savez_compressed(out / f'{stem}.npz', **payload)
+        done += 1
 
     if renderer is not None:
         renderer.close()
     print(f'\nwrote      : {out}')
+    print(f'summary    : extracted {done}, skipped {skipped}, failed {len(failures)}')
     if failures:
         print(f'failed     : {len(failures)} -> {failures}')
         sys.exit(1)

@@ -346,7 +346,9 @@ function buildHeader(){
   sel.innerHTML='';
   DATA.forEach((s,i)=>{
     const b=s.parts.body, sc=b.recorded!=null?b.recorded:b.jpe.score;
-    const o=el('option',null,`${s.src} · ${s.key.split('/').pop()} · body ${sc.toFixed(2)}`);
+    const runLbl = (s.run && s.run!=='-') ? `[${s.run}] ` : '';
+    const o=el('option',null,
+      `${runLbl}${s.src} · ${s.key.split('/').pop()} · body ${sc.toFixed(2)}`);
     o.value=i; sel.appendChild(o);
   });
   sel.value=DATA.indexOf(S);
@@ -631,8 +633,10 @@ function paintAll(){
 function render(){
   buildHeader();
   const b=S.parts.body;
+  const runBit = (S.run && S.run!=='-')
+    ? `<b>${S.run}</b> &nbsp;·&nbsp; ` : '';
   document.getElementById('subtitle').innerHTML =
-    `<span class="thai">${S.text}</span> &nbsp;·&nbsp; ${S.src} &nbsp;·&nbsp; `+
+    `<span class="thai">${S.text}</span> &nbsp;·&nbsp; ${runBit}${S.src} &nbsp;·&nbsp; `+
     `<span class="mono">${S.key}</span> &nbsp;·&nbsp; `+
     `generated ${S.N} frames vs reference ${S.M} frames`;
 
