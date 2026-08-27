@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DTW Alignment Inspector</title>
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#fff; --ink:#1a1a1a; --muted:#6b6b6b; --line:#e0e0dc;
+  --accent:#2b6cb0; --accent2:#b7791f; --warn:#c53030; --ok:#2f855a;
+  --ref:#2b6cb0; --gen:#b7791f;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#16161a; --panel:#1e1e24; --ink:#ececf0; --muted:#9a9aa4; --line:#32323c;
+    --accent:#63a4e0; --accent2:#e0b160; --warn:#f08a84; --ok:#7cc99a;
+    --ref:#63a4e0; --gen:#e0b160;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16161a; --panel:#1e1e24; --ink:#ececf0; --muted:#9a9aa4; --line:#32323c;
+  --accent:#63a4e0; --accent2:#e0b160; --warn:#f08a84; --ok:#7cc99a;
+  --ref:#63a4e0; --gen:#e0b160;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1{font-size:17px;margin:0;font-weight:650}
+.wrap{max-width:1400px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+select,button{font:inherit;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:6px;padding:5px 9px}
+button{cursor:pointer}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.grow{flex:1}
+.meta{color:var(--muted);font-size:12.5px}
+.thai{font-size:16px}
+.badge{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.03em;
+  padding:2px 7px;border-radius:99px;border:1px solid currentColor}
+.b-rec{color:var(--ok)} .b-diag{color:var(--accent2)} .b-bad{color:var(--warn)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  margin-top:14px;overflow:hidden}
+.sechead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;cursor:pointer;
+  padding:11px 14px;border-bottom:1px solid var(--line);user-select:none}
+.sechead h2{font-size:14.5px;margin:0;font-weight:650}
+.secbody{padding:14px}
+section.collapsed .secbody{display:none}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.strip-wrap{overflow-x:auto;padding-bottom:2px}
+.lane{position:relative}
+.lane canvas{display:block;image-rendering:auto}
+.lanelab{font-size:11px;font-weight:650;letter-spacing:.06em;color:var(--muted);margin:2px 0}
+.lanelab.ref{color:var(--ref)} .lanelab.gen{color:var(--gen)}
+.cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);gap:14px;margin-top:12px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}}
+.readout div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;
+  border-bottom:1px dotted var(--line)}
+.readout span:first-child{color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line)}
+.note code{background:var(--bg);padding:1px 4px;border-radius:3px}
+.pair{display:flex;gap:10px;align-items:flex-start;margin-top:10px;flex-wrap:wrap}
+.pair figure{margin:0;text-align:center}
+.pair img{width:112px;height:112px;object-fit:none;border:1px solid var(--line);
+  border-radius:6px;background:#fff}
+.pair figcaption{font-size:11px;color:var(--muted);margin-top:3px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin:0 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>DTW Alignment Inspector</h1>
+    <div class="meta" id="subtitle"></div>
+  </div>
+  <div class="grow"></div>
+  <select id="sample"></select>
+  <span id="parts"></span>
+</header>
+
+<div id="sections"></div>
+
+<section id="sec-notes">
+  <div class="sechead"><h2>How to read this</h2></div>
+  <div class="secbody" id="notes"></div>
+</section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+/* ---------- decoding ---------------------------------------------------- */
+function unb64(s){
+  const bin = atob(s), out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out;
+}
+function unquant(o, N, M){
+  const q = new Uint16Array(unb64(o.q).buffer);
+  const span = (o.hi - o.lo) || 1, f = new Float32Array(N*M);
+  for (let k=0;k<q.length;k++) f[k] = o.lo + q[k]/65535*span;
+  return f;
+}
+const mm = v => v*1000;
+const fmt = (v,d=1) => v.toFixed(d);
+
+/* ---------- per-sample derived state ------------------------------------ */
+const cache = new Map();
+function prep(s){
+  if (cache.has(s.key)) return cache.get(s.key);
+  const o = {parts:{}};
+  for (const p of Object.keys(s.parts)){
+    o.parts[p] = {};
+    for (const m of ['jpe','pa']){
+      const e = s.parts[p][m]; if (!e) continue;
+      const C = unquant(e.C, s.N, s.M);
+      const [pi,pj] = e.path;
+      // i -> [j...] and j -> [i...]
+      const i2j = new Map(), j2i = new Map();
+      for (let k=0;k<pi.length;k++){
+        if(!i2j.has(pi[k])) i2j.set(pi[k],[]);
+        if(!j2i.has(pj[k])) j2i.set(pj[k],[]);
+        i2j.get(pi[k]).push(pj[k]);
+        j2i.get(pj[k]).push(pi[k]);
+      }
+      // step types, mirroring the three legal moves in dtw.py:52-57
+      let diag=0, holdRef=0, holdGen=0;
+      for (let k=1;k<pi.length;k++){
+        const di=pi[k]-pi[k-1], dj=pj[k]-pj[k-1];
+        if (di&&dj) diag++; else if (di) holdRef++; else holdGen++;
+      }
+      let cmin=Infinity,cmax=-Infinity;
+      for (let k=0;k<C.length;k++){ if(C[k]<cmin)cmin=C[k]; if(C[k]>cmax)cmax=C[k]; }
+      const pathC = [];
+      for (let k=0;k<pi.length;k++) pathC.push(C[pi[k]*s.M+pj[k]]);
+      o.parts[p][m] = {C,cmin,cmax,pi,pj,i2j,j2i,diag,holdRef,holdGen,pathC,
+                       score:e.score, Dpath:e.Dpath};
+    }
+  }
+  cache.set(s.key,o);
+  return o;
+}
+
+/* ---------- colour ------------------------------------------------------ */
+// cool (cheap) -> warm (expensive); perceptually ordered, readable in both themes
+const RAMP = [[38,70,120],[45,120,150],[90,165,150],[190,195,120],[225,150,70],[190,70,60]];
+function rampRGB(t){
+  t = Math.max(0,Math.min(1,t))*(RAMP.length-1);
+  const i = Math.min(RAMP.length-2, Math.floor(t)), f = t-i;
+  const a = RAMP[i], b = RAMP[i+1];
+  return [a[0]+(b[0]-a[0])*f|0, a[1]+(b[1]-a[1])*f|0, a[2]+(b[2]-a[2])*f|0];
+}
+function ramp(t){ const c=rampRGB(t); return `rgb(${c[0]},${c[1]},${c[2]})`; }
+
+/* ---------- state ------------------------------------------------------- */
+let S = DATA[0], PART = 'body', HOVER = null, PIN = null, PROBE = null;
+
+/* ---------- strips ------------------------------------------------------ */
+const TICK = 7, TICKGAP = 1, LANE_H = 26, THUMB = 96;
+
+function drawLane(cv, s, d, track, hoverSet, focus){
+  const flip = (track==='gen');   // ticks on top, thumbnails below
+  const n = track==='ref' ? s.M : s.N;
+  const w = n*(TICK+TICKGAP);
+  const dpr = window.devicePixelRatio||1;
+  cv.width = w*dpr; cv.height = (LANE_H+THUMB)*dpr;
+  cv.style.width = w+'px'; cv.style.height = (LANE_H+THUMB)+'px';
+  const g = cv.getContext('2d');
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,LANE_H+THUMB);
+  const tickY  = flip ? 4 : THUMB+6;             // y of the tick band
+  const thumbY = flip ? LANE_H : 0;              // y of the expanded thumbnails
+
+  // cost of each frame, taken along the path (frames off the path do not exist:
+  // DTW visits every index of both sequences at least once)
+  const map = track==='ref' ? d.j2i : d.i2j;
+  const cost = new Float64Array(n).fill(NaN);
+  for (let k=0;k<d.pi.length;k++){
+    const idx = track==='ref' ? d.pj[k] : d.pi[k];
+    const c = d.pathC[k];
+    cost[idx] = isNaN(cost[idx]) ? c : Math.min(cost[idx], c);
+  }
+  const lo=d.cmin, hi=d.cmax;
+
+  for (let k=0;k<n;k++){
+    const x = k*(TICK+TICKGAP);
+    const partners = map.get(k)||[];
+    const hot = hoverSet && hoverSet.has(k);
+    g.fillStyle = isNaN(cost[k]) ? 'rgba(128,128,128,.35)'
+                                 : ramp((cost[k]-lo)/((hi-lo)||1));
+    g.globalAlpha = hot ? 1 : (hoverSet ? .3 : .85);
+    g.fillRect(x, tickY, TICK, LANE_H-10);
+    g.globalAlpha = 1;
+    // hold marker: this frame's partner count > 1 means it absorbed a run
+    if (partners.length>1){        // this frame absorbed a run: mark the hold
+      g.fillStyle = INK();
+      g.fillRect(x, flip ? tickY-3 : tickY+LANE_H-9, TICK, 2);
+    }
+  }
+  // Span bracket: when one frame absorbs a run, the whole run is highlighted in the
+  // tick band, so the extent stays visible even though only a few frames expand.
+  if (hoverSet && hoverSet.size > 1){
+    const ks=[...hoverSet], a=Math.min(...ks), b=Math.max(...ks);
+    const x0=a*(TICK+TICKGAP), x1=b*(TICK+TICKGAP)+TICK;
+    g.strokeStyle = CSSVAR(track==='ref'?'--ref':'--gen');
+    g.lineWidth=2;
+    const y = flip ? tickY+LANE_H-8 : tickY-4;
+    g.beginPath(); g.moveTo(x0,y); g.lineTo(x1,y); g.stroke();
+  }
+
+  // Expanded thumbnails. A 40-frame hold cannot show 40 tiles at an 8 px pitch --
+  // they would overlap into an unreadable smear -- so a long run is subsampled to
+  // evenly spaced frames, always keeping its first and last.
+  if (hoverSet){
+    const at = ATLAS[track];
+    if (at && at.img.complete){
+      for (const k of thin(hoverSet)){
+        const x = k*(TICK+TICKGAP) - (THUMB-TICK)/2;
+        const sx = (k % at.cols)*at.tile, sy = ((k/at.cols)|0)*at.tile;
+        g.save();
+        g.beginPath(); g.rect(Math.max(0,x),thumbY,THUMB,THUMB); g.clip();
+        g.drawImage(at.img, sx,sy,at.tile,at.tile, Math.max(0,x),thumbY,THUMB,THUMB);
+        g.restore();
+        g.strokeStyle = (k===focus) ? CSSVAR(track==='ref'?'--ref':'--gen') : CSSVAR('--line');
+        g.lineWidth = (k===focus)?2:1;
+        g.strokeRect(Math.max(0,x)+.5,thumbY+.5,THUMB-1,THUMB-1);
+      }
+    }
+  }
+  return w;
+}
+
+const MAX_THUMBS = 7;
+function thin(set){
+  const ks=[...set].sort((a,b)=>a-b);
+  if(ks.length<=MAX_THUMBS) return ks;
+  const out=[];
+  for(let n=0;n<MAX_THUMBS;n++) out.push(ks[Math.round(n*(ks.length-1)/(MAX_THUMBS-1))]);
+  return [...new Set(out)];
+}
+
+let ATLAS = {};
+const _css = {};
+function CSSVAR(n){
+  if (!(n in _css)) _css[n] = getComputedStyle(document.body).getPropertyValue(n);
+  return _css[n];
+}
+const INK = () => CSSVAR('--ink');
+
+/* ---------- heatmap ----------------------------------------------------- */
+function heatBase(s, d){
+  // Rasterising N*M pixels on every mousemove made hovering unusable on the longer
+  // samples, so the shaded matrix + both paths are baked once and blitted after that.
+  if (d._base) return d._base;
+  const N=s.N, M=s.M;
+  const cell = Math.max(1, Math.min(4, Math.floor(460/M)));
+  const w=M*cell, h=N*cell;
+  const off=document.createElement('canvas'); off.width=w; off.height=h;
+  const g=off.getContext('2d');
+  const img=g.createImageData(w,h);
+  const lo=d.cmin, span=(d.cmax-d.cmin)||1;
+  for(let i=0;i<N;i++){
+    for(let j=0;j<M;j++){
+      const c=rampRGB((d.C[i*M+j]-lo)/span);
+      for(let dy=0;dy<cell;dy++){
+        let o=(((i*cell+dy)*w)+(j*cell))*4;
+        for(let dx=0;dx<cell;dx++){
+          img.data[o]=c[0]; img.data[o+1]=c[1]; img.data[o+2]=c[2]; img.data[o+3]=255; o+=4;
+        }
+      }
+    }
+  }
+  g.putImageData(img,0,0);
+  d._base={canvas:off,cell,w,h};
+  return d._base;
+}
+
+function drawHeat(cv, s, d, other){
+  const base=heatBase(s,d), cell=base.cell, w=base.w, h=base.h;
+  const dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=h*dpr; cv.style.width=w+'px'; cv.style.height=h+'px';
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  g.drawImage(base.canvas,0,0);
+
+  const trace=(p,style,width)=>{
+    g.strokeStyle=style; g.lineWidth=width; g.beginPath();
+    for(let k=0;k<p.pi.length;k++){
+      const x=p.pj[k]*cell+cell/2, y=p.pi[k]*cell+cell/2;
+      k?g.lineTo(x,y):g.moveTo(x,y);
+    }
+    g.stroke();
+  };
+  if (other) trace(other,'rgba(255,255,255,.42)',1);   // the other mode's path
+  trace(d,'#fff',2.4);                                 // this mode's path, haloed
+  trace(d,'rgba(0,0,0,.75)',.9);                       // so it reads on pale cells
+
+  if (PROBE){
+    g.strokeStyle=INK(); g.lineWidth=1;
+    g.beginPath();
+    g.moveTo(0, PROBE.i*cell+cell/2); g.lineTo(w, PROBE.i*cell+cell/2);
+    g.moveTo(PROBE.j*cell+cell/2, 0); g.lineTo(PROBE.j*cell+cell/2, h);
+    g.stroke();
+  }
+  cv._cell=cell;
+}
+
+/* ---------- profile ----------------------------------------------------- */
+function drawProfile(cv, d, mark){
+  const w=Math.min(900, d.pathC.length*3), h=64, dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=h*dpr; cv.style.width=w+'px'; cv.style.height=h+'px';
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,h);
+  const hi=Math.max(...d.pathC)||1;
+  for(let k=0;k<d.pathC.length;k++){
+    const x=k/d.pathC.length*w, bw=Math.max(1,w/d.pathC.length);
+    const v=d.pathC[k]/hi;
+    g.fillStyle=ramp((d.pathC[k]-d.cmin)/((d.cmax-d.cmin)||1));
+    g.globalAlpha = (mark==null||mark===k)?1:.55;
+    g.fillRect(x,h-v*h,bw,v*h);
+  }
+  g.globalAlpha=1;
+  if(mark!=null){
+    g.strokeStyle=INK();
+    g.lineWidth=1; g.beginPath();
+    const x=mark/d.pathC.length*w; g.moveTo(x,0); g.lineTo(x,h); g.stroke();
+  }
+}
+
+/* ---------- rendering the page ------------------------------------------ */
+function el(tag, cls, html){
+  const e=document.createElement(tag);
+  if(cls) e.className=cls;
+  if(html!=null) e.innerHTML=html;
+  return e;
+}
+
+function buildHeader(){
+  const sel=document.getElementById('sample');
+  sel.innerHTML='';
+  DATA.forEach((s,i)=>{
+    const b=s.parts.body, sc=b.recorded!=null?b.recorded:b.jpe.score;
+    const runLbl = (s.run && s.run!=='-') ? `[${s.run}] ` : '';
+    const o=el('option',null,
+      `${runLbl}${s.src} · ${s.key.split('/').pop()} · body ${sc.toFixed(2)}`);
+    o.value=i; sel.appendChild(o);
+  });
+  sel.value=DATA.indexOf(S);
+  sel.onchange=()=>{S=DATA[+sel.value];HOVER=PIN=PROBE=null;loadAtlas();render();};
+
+  const ps=document.getElementById('parts'); ps.innerHTML='';
+  for(const p of ['body','lhand','rhand']){
+    const b=el('button',p===PART?'on':null,p);
+    b.onclick=()=>{PART=p;HOVER=PIN=PROBE=null;render();};
+    ps.appendChild(b);
+  }
+}
+
+function loadAtlas(){
+  ATLAS={};
+  for(const t of ['ref','gen']){
+    if(!S[t]) continue;
+    const im=new Image();
+    im.onload=render;
+    im.src='data:image/jpeg;base64,'+S[t].img;
+    ATLAS[t]={img:im,cols:S[t].cols,tile:S[t].tile,n:S[t].n};
+  }
+}
+
+function sectionFor(mode, o){
+  const d=o.parts[PART][mode];
+  if(!d) return null;
+  const rec=S.parts[PART].recorded;
+  // t2m.py:182 used to hardcode align_idx=0 for lhand; since that was fixed, all three
+  // parts follow the config's DTW_ALIGN_MODE.
+  const isRec = (mode===S.recorded_mode);
+  const sec=el('section');
+  const head=el('div','sechead');
+  head.appendChild(el('h2',null,
+    mode==='jpe' ? 'JPE — translation only (<code class="mono">align_idx=0</code>)'
+                 : 'PA — Procrustes: translation + rotation + scale (<code class="mono">align_idx=None</code>)'));
+  head.appendChild(el('span','badge '+(isRec?'b-rec':'b-diag'),
+    isRec?'RECORDED METRIC':'DIAGNOSTIC — not in test_scores.json'));
+  const L=d.pi.length;
+  head.appendChild(el('span','meta num',
+    `path sum ${d.score.toFixed(4)} over L=${L} steps · mean ${fmt(mm(d.pathC.reduce((a,b)=>a+b,0)/L))} mm/step`));
+  if(isRec&&rec!=null){
+    head.appendChild(el('span','badge '+(S.parts[PART].match?'b-rec':'b-bad'),
+      S.parts[PART].match?`reconciles ${rec.toFixed(6)}`:`MISMATCH vs ${rec.toFixed(6)}`));
+  }
+  head.onclick=()=>sec.classList.toggle('collapsed');
+  sec.appendChild(head);
+
+  const body=el('div','secbody');
+  body.appendChild(el('p','hint',
+    'Hover a tick to expand that frame and every frame DTW mapped it to. Click to pin. '+
+    'Click any heatmap cell — on the path or off it — to inspect that hypothetical pairing.'));
+
+  // strips
+  const sw=el('div','strip-wrap');
+  const refLab=el('div','lanelab ref',`REFERENCE — ${S.M} frames`);
+  const refCv=document.createElement('canvas');
+  const linkCv=document.createElement('canvas');
+  const genCv=document.createElement('canvas');
+  const genLab=el('div','lanelab gen',`GENERATED — ${S.N} frames`);
+  sw.append(refLab,refCv,linkCv,genCv,genLab);
+  body.appendChild(sw);
+
+  const cols=el('div','cols');
+  const left=el('div');
+  const heat=document.createElement('canvas');
+  left.appendChild(el('div','lanelab',`LOCAL COST C — ${S.N}×${S.M}, rows = generated, cols = reference`));
+  left.appendChild(heat);
+  left.appendChild(el('div','lanelab','COST ALONG PATH'));
+  const prof=document.createElement('canvas');
+  left.appendChild(prof);
+  const right=el('div');
+  const ro=el('div','readout');
+  right.appendChild(ro);
+  const pair=el('div','pair');
+  right.appendChild(pair);
+  cols.append(left,right);
+  body.appendChild(cols);
+  body.appendChild(el('div','note', noteFor(mode)));
+  sec.appendChild(body);
+
+  sec._paint=()=>{
+    const focus = PROBE ? null : (PIN||HOVER);
+    let refSet=null, genSet=null, fRef=null, fGen=null;
+    if(PROBE){ refSet=new Set([PROBE.j]); genSet=new Set([PROBE.i]); fRef=PROBE.j; fGen=PROBE.i; }
+    else if(focus){
+      if(focus.track==='gen'){
+        genSet=new Set([focus.k]); refSet=new Set(d.i2j.get(focus.k)||[]);
+        fGen=focus.k;
+      }else{
+        refSet=new Set([focus.k]); genSet=new Set(d.j2i.get(focus.k)||[]);
+        fRef=focus.k;
+      }
+    }
+    const wr=drawLane(refCv,S,d,'ref',refSet,fRef);
+    const wg=drawLane(genCv,S,d,'gen',genSet,fGen);
+    drawLinks(linkCv,Math.max(wr,wg),refSet,genSet);
+    drawHeat(heat,S,d,o.parts[PART][mode==='jpe'?'pa':'jpe']);
+    // readout
+    let i=null,j=null;
+    if(PROBE){i=PROBE.i;j=PROBE.j;}
+    else if(focus){
+      if(focus.track==='gen'){i=focus.k;j=(d.i2j.get(i)||[])[0];}
+      else{j=focus.k;i=(d.j2i.get(j)||[])[0];}
+    }
+    paintReadout(ro,pair,d,i,j,mode);
+    let mark=null;
+    if(i!=null&&j!=null&&!PROBE)
+      for(let k=0;k<d.pi.length;k++) if(d.pi[k]===i&&d.pj[k]===j){mark=k;break;}
+    drawProfile(prof,d,mark);
+  };
+
+  const hover=(track)=>(ev)=>{
+    const cv=track==='ref'?refCv:genCv;
+    const r=cv.getBoundingClientRect();
+    const k=Math.floor((ev.clientX-r.left)/(TICK+TICKGAP));
+    const n=track==='ref'?S.M:S.N;
+    if(k<0||k>=n) return;
+    // ignore the half of the lane occupied by expanded thumbnails
+    const y=ev.clientY-r.top;
+    const inTicks = track==='gen' ? (y<=LANE_H+4) : (y>=THUMB);
+    if(!inTicks && (PIN||PROBE)) return;
+    HOVER={track,k}; PROBE=null; paintAll();
+  };
+  refCv.onmousemove=hover('ref'); genCv.onmousemove=hover('gen');
+  const pinTo=(track)=>()=>{
+    if(!HOVER||HOVER.track!==track) return;
+    PIN = (PIN && PIN.track===track && PIN.k===HOVER.k) ? null : {...HOVER};
+    paintAll();
+  };
+  refCv.onclick=pinTo('ref'); genCv.onclick=pinTo('gen');
+  sw.onmouseleave=()=>{HOVER=null;paintAll();};
+  heat.onclick=(ev)=>{
+    const r=heat.getBoundingClientRect(), c=heat._cell;
+    const j=Math.floor((ev.clientX-r.left)/c), i=Math.floor((ev.clientY-r.top)/c);
+    if(i<0||i>=S.N||j<0||j>=S.M) return;
+    PROBE={i,j}; PIN=null; paintAll();
+  };
+  return sec;
+}
+
+function drawLinks(cv,w,refSet,genSet){
+  const H=34, dpr=window.devicePixelRatio||1;
+  cv.width=w*dpr; cv.height=H*dpr; cv.style.width=w+'px'; cv.style.height=H+'px';
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,H);
+  if(!refSet||!genSet) return;
+  g.lineWidth=1.2;
+  g.strokeStyle=CSSVAR('--accent');
+  g.globalAlpha=.75;
+  for(const j of thin(refSet)) for(const i of thin(genSet)){
+    g.beginPath();
+    g.moveTo(j*(TICK+TICKGAP)+TICK/2, 0);
+    g.lineTo(i*(TICK+TICKGAP)+TICK/2, H);
+    g.stroke();
+  }
+  g.globalAlpha=1;
+}
+
+function paintReadout(ro,pair,d,i,j,mode){
+  ro.innerHTML='';
+  const row=(a,b)=>{const e=el('div');e.append(el('span',null,a),el('span','num',b));ro.appendChild(e);};
+  if(i==null||j==null){ ro.appendChild(el('div','meta','Hover a frame or click a heatmap cell.')); pair.innerHTML=''; return; }
+  const C=d.C[i*S.M+j];
+  const onPath=(d.i2j.get(i)||[]).includes(j);
+  row('generated i', i);
+  row('reference j', j);
+  row('C[i,j]', fmt(mm(C))+' mm');
+  if(onPath){
+    let k=0; for(;k<d.pi.length;k++) if(d.pi[k]===i&&d.pj[k]===j) break;
+    row('D[i,j] (accumulated)', d.Dpath[k].toFixed(4));
+    const runGen=(d.j2i.get(j)||[]), runRef=(d.i2j.get(i)||[]);
+    let step='diagonal — both advance';
+    if(runGen.length>1) step=`HOLD-ref — ref ${j} absorbs gen ${runGen[0]}..${runGen[runGen.length-1]} (${runGen.length} frames)`;
+    else if(runRef.length>1) step=`HOLD-gen — gen ${i} absorbs ref ${runRef[0]}..${runRef[runRef.length-1]} (${runRef.length} frames)`;
+    row('step', step);
+    const shown=Math.max(runGen.length,runRef.length);
+    if(shown>MAX_THUMBS)
+      row('thumbnails shown', `${MAX_THUMBS} of ${shown}, evenly spaced across the run`);
+  }else{
+    row('on path?', 'NO — hypothetical pairing');
+    row('cheaper than path cell?',
+      (C < d.pathC[d.pi.indexOf(i)] ? 'yes' : 'no') +
+      ' — a low-cost cell only attracts the path if a monotone chain through it is globally cheap');
+  }
+  const pct = (()=>{let n=0;for(let k=0;k<d.C.length;k++) if(d.C[k]<C)n++;return n/d.C.length*100;})();
+  row('percentile of all cells', fmt(pct)+'%');
+
+  pair.innerHTML='';
+  for(const [track,k,lab] of [['ref',j,'reference '+j],['gen',i,'generated '+i]]){
+    const at=ATLAS[track]; if(!at) continue;
+    const f=el('figure');
+    const im=el('img');
+    im.src=at.img.src;
+    im.style.objectPosition=`-${(k%at.cols)*at.tile}px -${((k/at.cols)|0)*at.tile}px`;
+    im.style.width=at.tile+'px'; im.style.height=at.tile+'px';
+    f.append(im, el('figcaption',null,lab));
+    pair.appendChild(f);
+  }
+}
+
+function noteFor(mode){
+  const key = `<code>${S.src}_DTW_MPJPE_PA_${PART}</code>`;
+  let n = `Shaded by the <b>local</b> cost <code>C</code>, never the accumulated <code>D</code> — `+
+          `<code>D</code> is a monotonically brightening wedge that shows nothing. The white path `+
+          `is recovered from <code>D</code>; the faint line is the other mode's path. `+
+          `All costs are in mm (the arrays are metres). The score is `+
+          `<code>D[-1,-1]</code>, a <b>sum</b> over the path — <code>t2m.py:113</code> divides only `+
+          `by sequence count, so it grows with sentence length and is not comparable across datasets.`;
+  if(mode===S.recorded_mode){
+    n += ` This run is configured <code>METRIC.DTW_ALIGN_MODE: '${S.recorded_mode}'</code>, so this `+
+         `section is the metric recorded in <code>test_scores.json</code> as ${key}.`;
+    if(mode==='jpe')
+      n += ` The <code>_PA_</code> in that name is inherited from upstream and does <b>not</b> `+
+           `mean Procrustes here.`;
+  } else {
+    n += ` <b>Not a reportable score</b> — this run is configured `+
+         `<code>'${S.recorded_mode}'</code>, so only that section appears in `+
+         `<code>test_scores.json</code>. This one is a diagnostic.`;
+  }
+  if(PART==='body')
+    n += ` The alignment runs on <b>all 144 joints</b> and the 12-joint <code>wanted</code> subset `+
+         `is applied only afterwards (<code>l2_dist_align:92-94</code>). Under PA this means `+
+         `Procrustes is fit to joints that are never scored, which is why PA can come out `+
+         `<i>higher</i> than JPE for the body.`;
+  else
+    n += ` 21 joints regressed from the mesh via <code>smpl_x.orig_hand_regressor</code> — not the `+
+         `20 in <code>joint_part2idx['${PART}']</code>. <code>wanted=None</code>, so under PA `+
+         `Procrustes fits exactly the joints that are scored, cancelling wrist placement and `+
+         `orientation and leaving only finger articulation.`;
+  return n;
+}
+
+function compareSection(o){
+  const a=o.parts[PART].jpe, b=o.parts[PART].pa;
+  if(!a||!b) return null;
+  const sec=el('section');
+  const head=el('div','sechead');
+  head.appendChild(el('h2',null,'JPE vs PA — does the alignment mode change the mapping?'));
+  head.onclick=()=>sec.classList.toggle('collapsed');
+  sec.appendChild(head);
+  const body=el('div','secbody');
+
+  let diff=0, maxd=0;
+  for(const [i,js] of a.i2j){
+    const js2=b.i2j.get(i)||[];
+    if(js.join()!==js2.join()) diff++;
+    for(const j of js) for(const j2 of js2) maxd=Math.max(maxd,Math.abs(j-j2));
+  }
+  const holds=(d)=>{let mx=0;for(const [,v] of d.j2i) mx=Math.max(mx,v.length);return mx;};
+  const t=el('table');
+  t.innerHTML=`<tr><th>metric</th><th>JPE</th><th>PA</th></tr>
+    <tr><td>score (path sum)</td><td class="num">${a.score.toFixed(4)}</td><td class="num">${b.score.toFixed(4)}</td></tr>
+    <tr><td>path length L</td><td class="num">${a.pi.length}</td><td class="num">${b.pi.length}</td></tr>
+    <tr><td>diagonal steps</td><td class="num">${a.diag}</td><td class="num">${b.diag}</td></tr>
+    <tr><td>hold-ref (model lingered)</td><td class="num">${a.holdRef}</td><td class="num">${b.holdRef}</td></tr>
+    <tr><td>hold-gen (model rushed)</td><td class="num">${a.holdGen}</td><td class="num">${b.holdGen}</td></tr>
+    <tr><td>longest hold on one ref frame</td><td class="num">${holds(a)}</td><td class="num">${holds(b)}</td></tr>
+    <tr><td>mean C over whole matrix</td><td class="num">${fmt(mm(a.C.reduce((x,y)=>x+y,0)/a.C.length))} mm</td><td class="num">${fmt(mm(b.C.reduce((x,y)=>x+y,0)/b.C.length))} mm</td></tr>`;
+  body.appendChild(t);
+  body.appendChild(el('p','note',
+    `<b>${diff}</b> of ${a.i2j.size} generated frames land on a different reference frame under PA `+
+    `(largest shift ${maxd} frames). `+
+    (holds(a)>3
+      ? `The longest hold is ${holds(a)} frames under JPE and ${holds(b)} under PA — `+
+        (holds(b) >= holds(a)*0.6
+          ? `it <b>survives</b> Procrustes, so the generated motion really did go static there rather than `+
+            `the hold being an artifact of a rigid-body mismatch.`
+          : `it <b>collapses</b> under Procrustes, so the hold was largely rigid-body mismatch — `+
+            `position, orientation or scale — rather than a genuine freeze.`)
+      : `No long holds in this sample.`) +
+    ` PA is far lower than JPE for the hands, where <code>wanted=None</code> makes Procrustes fit `+
+    `exactly the scored joints; for the body it can be higher, because <code>wanted</code> is applied `+
+    `after alignment. Neither is "better" — they answer different questions.`));
+  sec.appendChild(body);
+  return sec;
+}
+
+function paintAll(){
+  document.querySelectorAll('section').forEach(s=>{ if(s._paint) s._paint(); });
+}
+
+function render(){
+  buildHeader();
+  const b=S.parts.body;
+  const runBit = (S.run && S.run!=='-')
+    ? `<b>${S.run}</b> &nbsp;·&nbsp; ` : '';
+  document.getElementById('subtitle').innerHTML =
+    `<span class="thai">${S.text}</span> &nbsp;·&nbsp; ${runBit}${S.src} &nbsp;·&nbsp; `+
+    `<span class="mono">${S.key}</span> &nbsp;·&nbsp; `+
+    `generated ${S.N} frames vs reference ${S.M} frames`;
+
+  const o=prep(S);
+  const host=document.getElementById('sections');
+  host.innerHTML='';
+  for(const m of ['jpe','pa']){
+    const sec=sectionFor(m,o);
+    if(sec) host.appendChild(sec);
+  }
+  const cmp=compareSection(o);
+  if(cmp) host.appendChild(cmp);
+
+  document.getElementById('notes').innerHTML = `
+    <p><b>What you are looking at.</b> DTW compares a generated sign motion against a reference.
+    It must ignore two things that are not signing errors: <i>space</i> (the generated body sits at
+    its own position, orientation and size — handled by the alignment inside the cost function) and
+    <i>time</i> (generated length N ≠ reference length M — handled by the warping itself).</p>
+    <p><b>Two matrices, not one.</b> <code>C[i,j]</code> is the local cost: how wrong it would be to
+    pair generated frame <i>i</i> with reference frame <i>j</i>, with no history.
+    <code>D[i,j]</code> is the cheapest total cost of any legal path arriving at (i,j).
+    The heatmaps show <code>C</code>; the path is traced back through <code>D</code>.</p>
+    <p><b>The local cost depends on the alignment mode.</b> The alignment happens
+    <i>inside</i> <code>l2_dist_align</code>, once per cell — every candidate pairing gets its own
+    private fit. So switching JPE↔PA changes <code>C</code>, which changes <code>D</code>, which can
+    change the path itself. That is why the two sections above are separate DTW runs, not two
+    shadings of one run.</p>
+    <p><b>Three legal moves</b> (<code>dtw.py:52-57</code>): diagonal (both advance), i advances with
+    j held (one reference frame covers many generated frames — the model <i>lingered</i>), and j
+    advances with i held (the model <i>rushed</i>). <code>w</code> (Sakoe–Chiba band) is
+    <code>inf</code> and <code>s</code> (off-diagonal penalty) is <code>1.0</code> and neither is ever
+    overridden, so warping is unconstrained — nothing caps how long a hold can run.</p>
+    <p><b>A perfect-match cell need not be on the path.</b> Low-cost cells attract the path only if a
+    monotone chain through them is globally cheap. DTW does not greedily pick each row's best match.</p>`;
+
+  paintAll();
+}
+
+loadAtlas();
+render();
+</script>
+</body>
+</html>

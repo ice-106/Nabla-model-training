@@ -179,7 +179,12 @@ class TM2TMetrics(Metric):
                 joint_idx = self.joint_part2idx['lhand']
                 joint_gt_lhand = torch.matmul(smpl_x.orig_hand_regressor['left'], mesh_gt).float().numpy()
                 joint_out_lhand = torch.matmul(smpl_x.orig_hand_regressor['left'], mesh_out).float().numpy()
-                dist_func = partial(l2_dist_align, align_idx=0)
+                # [MODIFIED]: to enable DTW-PA-JPE
+                # Was hardcoded align_idx=0 while body (:173) and rhand (:193) read
+                # self.dtw_align_idx, so under DTW_ALIGN_MODE 'pa' the left hand was
+                # scored as DTW-JPE while the other two were DTW-PA-JPE. No-op for
+                # every 'jpe' config, where dtw_align_idx is 0.
+                dist_func = partial(l2_dist_align, align_idx=self.dtw_align_idx)
                 value = dtw(joint_out_lhand, joint_gt_lhand, dist_func)[0]
                 setattr(self, f"{data_src}_DTW_MPJPE_PA_lhand", getattr(self, f"{data_src}_DTW_MPJPE_PA_lhand") + value)
                 self.name2scores[cur_name][f"{data_src}_DTW_MPJPE_PA_lhand"] = value
